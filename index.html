@@ -9,6 +9,8 @@
     <link rel="icon" type="image/png" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://server.arcgisonline.com" crossorigin>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.x/dist/tabler-icons.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@100..900&display=swap">
@@ -793,10 +795,27 @@
         /* ===== Mode léger (téléphones peu puissants) ===== */
         .info-list .info-item { content-visibility: auto; contain-intrinsic-size: auto 84px; }   /* éléments hors écran non calculés */
         html.lite { --glass-bg: #0A111F; }
-        html.lite *, html.lite *::before, html.lite *::after { box-shadow: none !important; text-shadow: none !important; transition: none !important; animation: none !important; }
-        html.lite #info-panel { transition: transform .2s ease !important; }
-        html.lite .ti.spin { animation: tclspin 1s linear infinite !important; }
+        html.lite *, html.lite *::before, html.lite *::after { box-shadow: none !important; text-shadow: none !important; }   /* animations conservées : seules les ombres coûteuses sont retirées */
         html.lite .tab-content, html.lite .app-header { background: #0A111F !important; }
+
+        /* ===== Animations (zoom carte géré par Leaflet) : apparition, glissements ===== */
+        @keyframes tclFadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+        @keyframes tclFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes tclPopIn  { from { opacity: 0; transform: scale(.92) translateY(8px); } to { opacity: 1; transform: none; } }
+        @keyframes tclSlideLeft { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+        .tab-pane.active { animation: tclFadeIn .25s ease-out; }
+        .info-list .info-item { animation: tclFadeUp .35s cubic-bezier(.2,.7,.2,1) both; }
+        .info-list .info-item:nth-child(2) { animation-delay: 30ms; } .info-list .info-item:nth-child(3) { animation-delay: 60ms; } .info-list .info-item:nth-child(4) { animation-delay: 90ms; } .info-list .info-item:nth-child(5) { animation-delay: 120ms; } .info-list .info-item:nth-child(6) { animation-delay: 150ms; } .info-list .info-item:nth-child(7) { animation-delay: 180ms; } .info-list .info-item:nth-child(8) { animation-delay: 210ms; } .info-list .info-item:nth-child(9) { animation-delay: 240ms; } .info-list .info-item:nth-child(10) { animation-delay: 270ms; }
+        .info-item .info-chevron { transition: transform .25s ease; }
+        .leaflet-popup { animation: tclPopIn .22s ease-out; }
+        .leaflet-control-zoom { animation: tclSlideLeft .4s ease-out .1s both; }
+        .panel-toggle { transition: background .18s, color .18s, transform .3s ease; }
+        #info-panel { transition: transform .35s cubic-bezier(.2,.7,.2,1); }
+        .leaflet-marker-icon { transition: opacity .25s ease; }
+        /* Lazy loading : image qui apparaît en fondu une fois chargée */
+        img[loading=lazy] { opacity: 0; transition: opacity .3s ease; }
+        img[loading=lazy].img-ok { opacity: 1; }
+        @media (prefers-reduced-motion: reduce) { .tab-pane.active, .info-list .info-item, .leaflet-popup, .leaflet-control-zoom { animation: none !important; } }
         @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
 
         /* ===== Icônes et éléments graphiques (sans émojis) ===== */
@@ -1009,15 +1028,15 @@
         function cachedImgHtml(src, style, fallbackHtml) {
             const state = imgCache.get(src);
             if (state === 'ok') {
-                return `<img src="${src}" style="${style}">`;
+                return `<img src="${src}" style="${style}" loading="lazy" decoding="async" onload="this.classList.add('img-ok')">`;
             }
             if (state === 'error') {
                 return fallbackHtml;
             }
             const escapedSrc = src.replace(/'/g, "\\'");
             const escapedFallback = fallbackHtml.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            return `<img src="${src}" style="${style}"
-                onload="imgCache.set('${escapedSrc}','ok')"
+            return `<img src="${src}" style="${style}" loading="lazy" decoding="async"
+                onload="this.classList.add('img-ok');imgCache.set('${escapedSrc}','ok')"
                 onerror="imgCache.set('${escapedSrc}','error');this.outerHTML='${escapedFallback}'">`;
         }
 
@@ -1237,7 +1256,7 @@ window.lineBadge = (function () {
         })();
         document.documentElement.classList.toggle('lite', !!LITE);
         const map = L.map('map', Object.assign({ preferCanvas: true, zoomControl: false },
-            LITE ? { zoomAnimation: false, fadeAnimation: false, markerZoomAnimation: false, inertia: false } : {})).setView([45.757, 4.832], 13);
+            matchMedia('(prefers-reduced-motion: reduce)').matches ? { zoomAnimation: false, fadeAnimation: false, markerZoomAnimation: false, inertia: false } : { zoomAnimation: true, fadeAnimation: true, markerZoomAnimation: true, inertia: true })).setView([45.757, 4.832], 13);
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 16, maxZoom: 19, updateWhenZooming: false,  attribution: 'Tiles © Esri — données © OpenStreetMap contributors' }).addTo(map);
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 16, maxZoom: 19 }).addTo(map);
 
@@ -2307,7 +2326,7 @@ window.lineBadge = (function () {
             const dest = getStopNameFromCode(bus.dest_code) || bus.dest_name;
             const delayOk = bus.delay === '0s';
             const vehImgs = getVehicleImages(bus);
-            const img = vehImgs.length ? `<img src="${vehImgs[0]}" data-next="${vehImgs.slice(1).join('|')}" alt="" onload="imgCache.set(this.getAttribute('src'),'ok')" onerror="imgCache.set(this.getAttribute('src'),'error');var q=this.dataset.next.split('|').filter(function(u){return u&&imgCache.get(u)!=='error'});if(q.length){this.dataset.next=q.slice(1).join('|');this.src=q[0]}else{this.closest('.bp-hero').classList.add('bp-nophoto')}">` : '';
+            const img = vehImgs.length ? `<img src="${vehImgs[0]}" loading="lazy" decoding="async" data-next="${vehImgs.slice(1).join('|')}" alt="" onload="this.classList.add('img-ok');imgCache.set(this.getAttribute('src'),'ok')" onerror="imgCache.set(this.getAttribute('src'),'error');var q=this.dataset.next.split('|').filter(function(u){return u&&imgCache.get(u)!=='error'});if(q.length){this.dataset.next=q.slice(1).join('|');this.src=q[0]}else{this.closest('.bp-hero').classList.add('bp-nophoto')}">` : '';
             return `<div class="bp" style="--bp-c:${mainColor}">
                 <div class="bp-hero${vehImgs.length ? '' : ' bp-nophoto'}">${img}<div class="bp-logo">${lineImgHtml(line, '32px')}</div></div>
                 <div class="bp-body">
@@ -2611,7 +2630,7 @@ window.lineBadge = (function () {
         // Icône officielle « En Covoit' Lignes » d'une ligne (repli : pastille de couleur)
         function covoitBadge(k, h, c) {
             const src = COVOIT_ICONS[String(k)];
-            if (src) return `<img src="${src}" alt="${covoitEsc(covoitLabel(k))}" style="height:${h}px;width:auto;flex-shrink:0;display:block;">`;
+            if (src) return `<img src="${src}" alt="${covoitEsc(covoitLabel(k))}" style="height:${h}px;width:auto;flex-shrink:0;display:block;" loading="lazy" decoding="async" onload="this.classList.add('img-ok')">`;
             c = c || '#91A6D9';
             return `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:${c}26;color:${c};border:1px solid ${c}66;flex-shrink:0;">${covoitEsc(covoitLabel(k))}</span>`;
         }
