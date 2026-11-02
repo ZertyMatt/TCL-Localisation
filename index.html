@@ -807,7 +807,7 @@
         .info-list .info-item { animation: tclFadeUp .35s cubic-bezier(.2,.7,.2,1) both; }
         .info-list .info-item:nth-child(2) { animation-delay: 30ms; } .info-list .info-item:nth-child(3) { animation-delay: 60ms; } .info-list .info-item:nth-child(4) { animation-delay: 90ms; } .info-list .info-item:nth-child(5) { animation-delay: 120ms; } .info-list .info-item:nth-child(6) { animation-delay: 150ms; } .info-list .info-item:nth-child(7) { animation-delay: 180ms; } .info-list .info-item:nth-child(8) { animation-delay: 210ms; } .info-list .info-item:nth-child(9) { animation-delay: 240ms; } .info-list .info-item:nth-child(10) { animation-delay: 270ms; }
         .info-item .info-chevron { transition: transform .25s ease; }
-        .leaflet-popup { animation: tclPopIn .22s ease-out; }
+        .leaflet-popup-content-wrapper { animation: tclPopIn .22s ease-out; transform-origin: 50% 100%; }   /* surtout pas sur .leaflet-popup : Leaflet le positionne via transform */
         .leaflet-control-zoom { animation: tclSlideLeft .4s ease-out .1s both; }
         .panel-toggle { transition: background .18s, color .18s, transform .3s ease; }
         #info-panel { transition: transform .35s cubic-bezier(.2,.7,.2,1); }
@@ -815,7 +815,7 @@
         /* Lazy loading : image qui apparaît en fondu une fois chargée */
         img[loading=lazy] { opacity: 0; transition: opacity .3s ease; }
         img[loading=lazy].img-ok { opacity: 1; }
-        @media (prefers-reduced-motion: reduce) { .tab-pane.active, .info-list .info-item, .leaflet-popup, .leaflet-control-zoom { animation: none !important; } }
+        @media (prefers-reduced-motion: reduce) { .tab-pane.active, .info-list .info-item, .leaflet-popup-content-wrapper, .leaflet-control-zoom { animation: none !important; } }
         @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
 
         /* ===== Icônes et éléments graphiques (sans émojis) ===== */
@@ -979,10 +979,10 @@
             <div id="credits-pane" class="tab-pane">
                 <div class="tab-header">À propos</div>
                 <div class="credits-content">
-                    <div class="credits-section"><h3><i class="ti ti-bus"></i>TCL Localisation</h3><p>Application de localisation en temps réel des transports en commun lyonnais.</p><p style="opacity:.55;font-size:11px;margin-top:6px;">Prélancement v1.0 - Novembre 2026</p></div>
+                    <div class="credits-section"><h3><i class="ti ti-bus"></i>TCL Localisation</h3><p>Application de localisation en temps réel des transports en commun lyonnais.</p></div>
                     <div class="credits-section"><h3><i class="ti ti-database"></i>Sources de données</h3><p>Données fournies par <a href="https://data.grandlyon.com" target="_blank">data.grandlyon.com</a></p></div>
                     <div class="credits-section"><h3><i class="ti ti-map-2"></i>Cartographie</h3><p>© <a href="https://www.openstreetmap.org" target="_blank">OpenStreetMap</a></p></div>
-                    <div class="credits-section"><h3><i class="ti ti-code"></i>Développement</h3><p>Préversion - SpookyMonth 2026</p></div>
+                    <div class="credits-section"><h3><i class="ti ti-code"></i>Développement</h3><p>Préversion v1.4 - Novembre 2026</p></div>
                 </div>
             </div>
             <div id="velov-pane" class="tab-pane">
@@ -1267,7 +1267,9 @@ window.lineBadge = (function () {
         // ==================== VARIABLES ====================
         let allStops = [], stopsMapping = {}, allLines = [], filteredLines = [];
         let allVelovStations = [], currentVelovMarkers = [], currentStopMarker = null, currentVelovMarker = null;
-        const VELOV_MIN_ZOOM = 15;   // stations Vélo'v affichées seulement à partir de ce niveau de zoom (allège la carte)
+        const IS_MOBILE = () => window.matchMedia('(max-width: 640px)').matches;
+        const velovMinZoom = () => IS_MOBILE() ? 15 : 16;    // stations Vélo'v affichées seulement à partir de ce zoom (16 PC / 15 mobile)
+        const velovMaxShown = () => IS_MOBILE() ? 50 : 150;  // nombre max de stations affichées (mobile : 100 de moins que sur PC)
         const BUS_MIN_ZOOM = 12;   // en dessous, les bus ne sont pas affichés (comme les Vélo'v)
         let lastBuses = [], busRenderTimeout = null;
         let parc = null;
@@ -2726,9 +2728,9 @@ window.lineBadge = (function () {
 
         function updateVisibleVelov() {
             const zoom = map.getZoom();
-            if (zoom < VELOV_MIN_ZOOM) { velovMarkerMap.forEach(m => velovLayer.removeLayer(m)); velovMarkerMap.clear(); currentVelovMarkers = []; return; }
+            if (zoom < velovMinZoom()) { velovMarkerMap.forEach(m => velovLayer.removeLayer(m)); velovMarkerMap.clear(); currentVelovMarkers = []; return; }
             const bounds = map.getBounds();
-            const visible = allVelovStations.filter(s => { const lat=parseFloat(s.lat),lng=parseFloat(s.lng); return !isNaN(lat)&&!isNaN(lng)&&bounds.contains([lat,lng]); }).slice(0, 150);
+            const visible = allVelovStations.filter(s => { const lat=parseFloat(s.lat),lng=parseFloat(s.lng); return !isNaN(lat)&&!isNaN(lng)&&bounds.contains([lat,lng]); }).slice(0, velovMaxShown());
             const visibleKeys = new Set();
             visible.forEach(s => {
                 const key = `${s.lat},${s.lng}`;
