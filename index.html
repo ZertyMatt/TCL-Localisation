@@ -801,7 +801,7 @@ img[loading=lazy].img-ok { opacity: 1; }
 <div class="credits-section"><h3><i class="ti ti-bus"></i>TCL Localisation</h3><p>Application de localisation en temps réel des transports en commun lyonnais.</p></div>
 <div class="credits-section"><h3><i class="ti ti-database"></i>Sources de données</h3><p>Données fournies par <a href="https://data.grandlyon.com" target="_blank">data.grandlyon.com</a></p></div>
 <div class="credits-section"><h3><i class="ti ti-map-2"></i>Cartographie</h3><p>© <a href="https://www.openstreetmap.org" target="_blank">OpenStreetMap</a></p></div>
-<div class="credits-section"><h3><i class="ti ti-code"></i>Développement</h3><p>Préversion v1.7 - Novembre 2026</p></div>
+<div class="credits-section"><h3><i class="ti ti-code"></i>Développement</h3><p>Préversion v1.8 - Novembre 2026</p></div>
 </div>
 </div>
 <div id="velov-pane" class="tab-pane">
@@ -1447,6 +1447,8 @@ const IS_MOBILE = () => window.matchMedia("(max-width: 640px)").matches;
 const velovMinZoom = () => IS_MOBILE() ? 15 : 16;
 
 const velovMaxShown = () => IS_MOBILE() ? 50 : 150;
+
+const VELOV_NUM_ZOOM = 17;
 
 const BUS_MIN_ZOOM = 12;
 
@@ -3663,8 +3665,16 @@ function scheduleVelovUpdate() {
  velovUpdateTimeout = setTimeout(() => updateVisibleVelov(), 250);
 }
 
+let velovFull = null;
+
 function updateVisibleVelov() {
  const zoom = map.getZoom();
+ const full = zoom >= VELOV_NUM_ZOOM;
+ if (velovFull !== full) {
+  velovMarkerMap.forEach(m => velovLayer.removeLayer(m));
+  velovMarkerMap.clear();
+  velovFull = full;
+ }
  if (zoom < velovMinZoom()) {
   velovMarkerMap.forEach(m => velovLayer.removeLayer(m));
   velovMarkerMap.clear();
@@ -3684,17 +3694,28 @@ function updateVisibleVelov() {
   const sig = bikes + "|" + stands, ex = velovMarkerMap.get(key);
   if (ex) {
    if (ex._sig !== sig) {
-    ex.setIcon(velovPinIcon(bikes, stands, false, velovCap(s)));
+    if (full) ex.setIcon(velovPinIcon(bikes, stands, false, velovCap(s))); else ex.setStyle({
+     fillColor: velovStatusColor(bikes, velovCap(s))
+    });
     ex._sig = sig;
    }
    return;
   }
-  const m = L.marker([ parseFloat(s.lat), parseFloat(s.lng) ], {
+  const ll = [ parseFloat(s.lat), parseFloat(s.lng) ];
+  // Zoom éloigné : simple point dessiné sur le canvas (très léger) ; zoom proche : pastille avec les chiffres en temps réel
+  const m = (full ? L.marker(ll, {
    icon: velovPinIcon(bikes, stands, false, velovCap(s)),
    keyboard: false
-  }).bindPopup(() => velovPopupHtml(velovByKey.get(key) || s), {
+  }) : L.circleMarker(ll, {
+   radius: 7,
+   weight: 2,
+   color: "#0A111F",
+   fillColor: velovStatusColor(bikes, velovCap(s)),
+   fillOpacity: 1
+  }).on("popupopen", e => e.popup.setLatLng(e.target.getLatLng()))).bindPopup(() => velovPopupHtml(velovByKey.get(key) || s), {
    maxWidth: 230,
-   className: "tcl-popup"
+   className: "tcl-popup",
+   offset: full ? [ 0, 7 ] : [ 0, -2 ]
   }).addTo(velovLayer);
   m._sig = sig;
   velovMarkerMap.set(key, m);
