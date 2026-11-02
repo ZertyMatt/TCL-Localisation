@@ -804,18 +804,27 @@
         @keyframes tclPopIn  { from { opacity: 0; transform: scale(.92) translateY(8px); } to { opacity: 1; transform: none; } }
         @keyframes tclSlideLeft { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
         .tab-pane.active { animation: tclFadeIn .25s ease-out; }
-        .info-list .info-item { animation: tclFadeUp .35s cubic-bezier(.2,.7,.2,1) both; }
-        .info-list .info-item:nth-child(2) { animation-delay: 30ms; } .info-list .info-item:nth-child(3) { animation-delay: 60ms; } .info-list .info-item:nth-child(4) { animation-delay: 90ms; } .info-list .info-item:nth-child(5) { animation-delay: 120ms; } .info-list .info-item:nth-child(6) { animation-delay: 150ms; } .info-list .info-item:nth-child(7) { animation-delay: 180ms; } .info-list .info-item:nth-child(8) { animation-delay: 210ms; } .info-list .info-item:nth-child(9) { animation-delay: 240ms; } .info-list .info-item:nth-child(10) { animation-delay: 270ms; }
+        .info-list .info-item.enter { animation: tclFadeUp .35s cubic-bezier(.2,.7,.2,1) both; }   /* classe posée une seule fois par le script, jamais rejouée au changement d'onglet */
         .info-item .info-chevron { transition: transform .25s ease; }
         .leaflet-popup-content-wrapper { animation: tclPopIn .22s ease-out; transform-origin: 50% 100%; }   /* surtout pas sur .leaflet-popup : Leaflet le positionne via transform */
         .leaflet-control-zoom { animation: tclSlideLeft .4s ease-out .1s both; }
+        @keyframes tclPopOut { from { opacity: 1; transform: none; } to { opacity: 0; transform: scale(.92) translateY(8px); } }
+        .leaflet-popup.tcl-closing .leaflet-popup-content-wrapper { animation: tclPopOut .2s ease-in forwards; }
+        .leaflet-popup.tcl-closing .leaflet-popup-tip-container { opacity: 0; transition: opacity .2s; }
+        /* Véhicules : apparition / disparition (propriété « scale » : ne touche pas à la rotation ni au positionnement Leaflet) */
+        @keyframes vehPop { from { opacity: 0; scale: .3; } to { opacity: 1; scale: 1; } }
+        @keyframes vehOut { from { opacity: 1; scale: 1; } to { opacity: 0; scale: .3; } }
+        .leaflet-marker-icon.veh-new > div { animation: vehPop .45s cubic-bezier(.3,1.5,.5,1) both; }
+        .leaflet-marker-icon.veh-out > div { animation: vehOut .25s ease-in forwards; }
+        .leaflet-container a.leaflet-popup-close-button { z-index: 50; pointer-events: auto; cursor: pointer; touch-action: manipulation; }
+        .traffic-popup-close { z-index: 5; touch-action: manipulation; }
         .panel-toggle { transition: background .18s, color .18s, transform .3s ease; }
         #info-panel { transition: transform .35s cubic-bezier(.2,.7,.2,1); }
         .leaflet-marker-icon { transition: opacity .25s ease; }
         /* Lazy loading : image qui apparaît en fondu une fois chargée */
         img[loading=lazy] { opacity: 0; transition: opacity .3s ease; }
         img[loading=lazy].img-ok { opacity: 1; }
-        @media (prefers-reduced-motion: reduce) { .tab-pane.active, .info-list .info-item, .leaflet-popup-content-wrapper, .leaflet-control-zoom { animation: none !important; } }
+        @media (prefers-reduced-motion: reduce) { .tab-pane.active, .info-list .info-item, .leaflet-popup.tcl-closing .leaflet-popup-content-wrapper, .leaflet-marker-icon.veh-new > div, .leaflet-marker-icon.veh-out > div, .leaflet-popup-content-wrapper, .leaflet-control-zoom { animation: none !important; } }
         @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
 
         /* ===== Icônes et éléments graphiques (sans émojis) ===== */
@@ -982,7 +991,7 @@
                     <div class="credits-section"><h3><i class="ti ti-bus"></i>TCL Localisation</h3><p>Application de localisation en temps réel des transports en commun lyonnais.</p></div>
                     <div class="credits-section"><h3><i class="ti ti-database"></i>Sources de données</h3><p>Données fournies par <a href="https://data.grandlyon.com" target="_blank">data.grandlyon.com</a></p></div>
                     <div class="credits-section"><h3><i class="ti ti-map-2"></i>Cartographie</h3><p>© <a href="https://www.openstreetmap.org" target="_blank">OpenStreetMap</a></p></div>
-                    <div class="credits-section"><h3><i class="ti ti-code"></i>Développement</h3><p>Préversion v1.4 - Novembre 2026</p></div>
+                    <div class="credits-section"><h3><i class="ti ti-code"></i>Développement</h3><p>Préversion v1.5 - Novembre 2026</p></div>
                 </div>
             </div>
             <div id="velov-pane" class="tab-pane">
@@ -1262,6 +1271,14 @@ window.lineBadge = (function () {
 
         let busLayer     = L.layerGroup().addTo(map);
         let parkingLayer = L.layerGroup().addTo(map);
+        const REDUCED_MOTION = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        // Fermeture animée des pop-ups : la classe est posée juste avant que Leaflet retire le conteneur (il le garde 200 ms pour son fondu)
+        (() => { const orig = L.Popup.prototype.onRemove; L.Popup.prototype.onRemove = function (m) { if (this._container && !REDUCED_MOTION) this._container.classList.add('tcl-closing'); return orig.call(this, m); }; })();
+        // Croix de fermeture : prise en charge garantie (clic + tactile), même si un élément du pop-up la recouvrait
+        (() => {
+            const closeFrom = e => { const b = e.target.closest && e.target.closest('.leaflet-popup-close-button'); if (!b) return; e.preventDefault(); e.stopPropagation(); map.closePopup(); };
+            map.getContainer().addEventListener('click', closeFrom, true);
+        })();
         let velovLayer   = L.layerGroup().addTo(map);
 
         // ==================== VARIABLES ====================
@@ -1281,6 +1298,20 @@ window.lineBadge = (function () {
         const busMarkers = new Map();
 
         // ==================== UTILITAIRES ====================
+        // Apparition des éléments de liste : seuls les éléments NOUVEAUX s'animent (jamais au simple changement d'onglet)
+        (() => {
+            if (REDUCED_MOTION) return;
+            const keyOf = el => el.dataset.id || el.dataset.name || (el.dataset.lat ? el.dataset.lat + ',' + el.dataset.lon : '') || (el.textContent || '').trim().slice(0, 60);
+            document.querySelectorAll('.info-list').forEach(list => {
+                let prev = new Set();
+                new MutationObserver(() => {
+                    const items = [...list.querySelectorAll('.info-item')], cur = new Set(), fresh = [];
+                    items.forEach(el => { const k = keyOf(el); cur.add(k); if (!prev.has(k) && !el.classList.contains('enter')) fresh.push(el); });
+                    prev = cur;
+                    fresh.slice(0, 12).forEach((el, i) => { el.style.animationDelay = (i * 30) + 'ms'; el.classList.add('enter'); el.addEventListener('animationend', () => { el.classList.remove('enter'); el.style.animationDelay = ''; }, { once: true }); });
+                }).observe(list, { childList: true });
+            });
+        })();
         const togglePanel = () => { document.getElementById('info-panel').classList.toggle('collapsed'); setTimeout(() => map.invalidateSize(), 300); };
         const toggleInfoItem = (el) => el.closest('.info-item').classList.toggle('expanded');
 
@@ -2374,10 +2405,14 @@ window.lineBadge = (function () {
                         .bindPopup(() => busPopupHtml((busMarkers.get(key) || {}).bus || bus), { maxWidth:260, className:'tcl-popup' })
                         .on('click', () => showBusLineStops((busMarkers.get(key) || {}).bus || bus))
                         .addTo(busLayer);
+                    { const el = marker.getElement(); if (el && !REDUCED_MOTION) { el.classList.add('veh-new'); setTimeout(() => el.classList.remove('veh-new'), 600); } }
                     busMarkers.set(key, { marker, hash: h, bus, ik: busIconKey(bus) });
                 } catch (e) { console.warn('Bus ignoré :', bus && bus.id, bus && bus.line, e); } }
                 for (const [id, entry] of busMarkers) {
-                    if (!seenIds.has(id)) { busLayer.removeLayer(entry.marker); busMarkers.delete(id); }
+                    if (!seenIds.has(id)) {
+                        const el = entry.marker.getElement(), mk = entry.marker; busMarkers.delete(id);
+                        if (el && !REDUCED_MOTION) { el.classList.add('veh-out'); setTimeout(() => busLayer.removeLayer(mk), 260); } else busLayer.removeLayer(mk);
+                    }
                 }
             } catch(e) { console.error("Bus:", e); }
         }
