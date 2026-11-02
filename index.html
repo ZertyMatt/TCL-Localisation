@@ -801,7 +801,7 @@ img[loading=lazy].img-ok { opacity: 1; }
 <div class="credits-section"><h3><i class="ti ti-bus"></i>TCL Localisation</h3><p>Application de localisation en temps réel des transports en commun lyonnais.</p></div>
 <div class="credits-section"><h3><i class="ti ti-database"></i>Sources de données</h3><p>Données fournies par <a href="https://data.grandlyon.com" target="_blank">data.grandlyon.com</a></p></div>
 <div class="credits-section"><h3><i class="ti ti-map-2"></i>Cartographie</h3><p>© <a href="https://www.openstreetmap.org" target="_blank">OpenStreetMap</a></p></div>
-<div class="credits-section"><h3><i class="ti ti-code"></i>Développement</h3><p>Préversion v1.8 - Novembre 2026</p></div>
+<div class="credits-section"><h3><i class="ti ti-code"></i>Développement</h3><p>Préversion v1.11 - Novembre 2026</p></div>
 </div>
 </div>
 <div id="velov-pane" class="tab-pane">
@@ -1466,6 +1466,22 @@ const ICO_ESCALATOR = '<svg class="ico-eq" viewBox="0 0 24 24" aria-label="Escal
 
 const busMarkers = new Map;
 
+const playEnter = els => {
+ if (REDUCED_MOTION) return;
+ els.slice(0, 12).forEach((el, i) => {
+  el.classList.remove("enter");
+  void el.offsetWidth;
+  el.style.animationDelay = i * 30 + "ms";
+  el.classList.add("enter");
+  el.addEventListener("animationend", () => {
+   el.classList.remove("enter");
+   el.style.animationDelay = "";
+  }, {
+   once: true
+  });
+ });
+};
+
 (() => {
  if (REDUCED_MOTION) return;
  const keyOf = el => el.dataset.id || el.dataset.name || (el.dataset.lat ? el.dataset.lat + "," + el.dataset.lon : "") || (el.textContent || "").trim().slice(0, 60);
@@ -1479,16 +1495,7 @@ const busMarkers = new Map;
     if (!prev.has(k) && !el.classList.contains("enter")) fresh.push(el);
    });
    prev = cur;
-   fresh.slice(0, 12).forEach((el, i) => {
-    el.style.animationDelay = i * 30 + "ms";
-    el.classList.add("enter");
-    el.addEventListener("animationend", () => {
-     el.classList.remove("enter");
-     el.style.animationDelay = "";
-    }, {
-     once: true
-    });
-   });
+   playEnter(fresh);
   }).observe(list, {
    childList: true
   });
@@ -1500,7 +1507,56 @@ const togglePanel = () => {
  setTimeout(() => map.invalidateSize(), 300);
 };
 
-const toggleInfoItem = el => el.closest(".info-item").classList.toggle("expanded");
+const toggleInfoItem = el => {
+ const item = el.closest(".info-item"), det = item.querySelector(".info-detail");
+ if (!det || REDUCED_MOTION) {
+  item.classList.toggle("expanded");
+  return;
+ }
+ det.getAnimations().forEach(a => a.cancel());
+ det.style.overflow = "hidden";
+ const done = () => {
+  det.style.overflow = "";
+ };
+ if (!item.classList.contains("expanded")) {
+  item.classList.add("expanded");
+  det.animate([ {
+   height: "0px",
+   opacity: 0
+  }, {
+   height: det.scrollHeight + "px",
+   opacity: 1
+  } ], {
+   duration: 260,
+   easing: "cubic-bezier(.2,.7,.2,1)"
+  }).onfinish = done;
+ } else {
+  det.animate([ {
+   height: det.offsetHeight + "px",
+   opacity: 1
+  }, {
+   height: "0px",
+   opacity: 0
+  } ], {
+   duration: 200,
+   easing: "ease-in"
+  }).onfinish = () => {
+   item.classList.remove("expanded");
+   done();
+  };
+ }
+};
+
+function closeTrafficPopup(btn) {
+ const el = btn.closest(".traffic-popup");
+ if (!el) return;
+ if (REDUCED_MOTION) {
+  el.remove();
+  return;
+ }
+ el.classList.add("tp-out");
+ setTimeout(() => el.remove(), 350);
+}
 
 function switchToTab(tabName) {
  document.querySelectorAll(".header-tab").forEach(btn => {
@@ -1512,6 +1568,7 @@ function switchToTab(tabName) {
  if (tabName === "velov") {
   allVelovStations.length ? filterVelovStations() : loadVelovStations();
  }
+ if (tabName === "traffic" || tabName === "accessibility") playEnter([ ...document.querySelectorAll(`#${tabName}-list .info-item`) ]);
 }
 
 document.querySelectorAll(".header-tab").forEach(btn => btn.addEventListener("click", () => switchToTab(btn.dataset.tab)));
@@ -2864,8 +2921,17 @@ const getStopNameFromCode = code => {
 
 const busKey = bus => bus.id + "|" + bus.line;
 
+function busHasDirection(bus) {
+ if (/^NAVI/.test(canonLine(bus.line))) return false;
+ if (/^TB/i.test(String(bus.line || ""))) return true;
+ const v = getParcVehicle(bus);
+ if (!v || v.bateau) return false;
+ const ex = v.exploitant || "";
+ return /keolis bus lyon/i.test(ex) || /ratp/i.test(ex) && parcCategory(bus) === "tram";
+}
+
 function busHash(bus) {
- return `${bus.lat},${bus.lon},${bus.bearing},${bus.delay},${bus.dest_code},${canonLine(bus.line)}`;
+ return `${bus.lat},${bus.lon},${bus.bearing},${bus.delay},${bus.dest_code},${canonLine(bus.line)},${busHasDirection(bus) ? 1 : 0}`;
 }
 
 const LIGNES_2XX_HORS_TRANSDEV = new Set([ "230", "232", "248" ]);
@@ -2982,11 +3048,11 @@ function busColorOf(line, bus) {
  return lineColor(line) || bus.color || (isTram ? "#10B3C5" : "#DA1A0E");
 }
 
-const busIconKey = bus => canonLine(bus.line) + "|" + (Number(bus.bearing) || 0) + "|" + busColorOf(canonLine(bus.line), bus);
+const busIconKey = bus => canonLine(bus.line) + "|" + (busHasDirection(bus) ? "d" + (Number(bus.bearing) || 0) : "-") + "|" + busColorOf(canonLine(bus.line), bus);
 
 function busIcon(bus) {
  const line = canonLine(bus.line);
- const bearingNum = Number(bus.bearing), hasDir = isFinite(bearingNum) && bearingNum !== 0, rotation = hasDir ? bearingNum : 0;
+ const bearingNum = Number(bus.bearing), hasDir = busHasDirection(bus), rotation = hasDir && isFinite(bearingNum) ? bearingNum : 0;
  const mainColor = busColorOf(line, bus);
  const modeHtml = modeIcon(line, 13);
  return L.divIcon({
@@ -3812,7 +3878,7 @@ async function updateTraffic() {
    const icon = isPerturb ? '<i class="ti ti-alert-triangle"></i>' : isTravaux ? '<i class="ti ti-tool"></i>' : '<i class="ti ti-barrier-block"></i>';
    const uniqueLines = [ ...new Set([ ...a.lines ].map(l => l.trim()).filter(Boolean)) ];
    const linesHtml = uniqueLines.map(line => lineImgHtml(line, "28px")).join("");
-   return `<div class="info-item${popup ? " traffic-popup expanded" : ""}">\n                        <div class="info-summary"${popup ? "" : ' onclick="toggleInfoItem(this)"'}>\n                            <div class="info-line-badge" style="background:${bg};border:1px solid ${bdr};font-size:18px;color:${fg};">${icon}</div>\n                            <div class="info-summary-text">\n                                <div class="info-titre">${a.titre || "Info trafic"}</div>\n                                ${linesHtml ? `<div class="stop-lines" style="margin-top:6px;">${linesHtml}</div>` : ""}\n                                <div class="info-type" style="margin-top:5px;">${a.mode || "TCL"} • ${a.type || "Information"}</div>\n                            </div>\n                            ${popup ? "" : '<span class="info-chevron"><i class="ti ti-chevron-down"></i></span>'}\n                        </div>\n                        <div class="info-detail">${a.message || "Aucun détail"}</div>\n                        ${popup ? '<button class="traffic-popup-close" type="button" aria-label="Fermer" onclick="this.closest(\'.traffic-popup\').remove()"><i class="ti ti-x"></i></button>' : ""}\n                    </div>`;
+   return `<div class="info-item${popup ? " traffic-popup expanded" : ""}">\n                        <div class="info-summary"${popup ? "" : ' onclick="toggleInfoItem(this)"'}>\n                            <div class="info-line-badge" style="background:${bg};border:1px solid ${bdr};font-size:18px;color:${fg};">${icon}</div>\n                            <div class="info-summary-text">\n                                <div class="info-titre">${a.titre || "Info trafic"}</div>\n                                ${linesHtml ? `<div class="stop-lines" style="margin-top:6px;">${linesHtml}</div>` : ""}\n                                <div class="info-type" style="margin-top:5px;">${a.mode || "TCL"} • ${a.type || "Information"}</div>\n                            </div>\n                            ${popup ? "" : '<span class="info-chevron"><i class="ti ti-chevron-down"></i></span>'}\n                        </div>\n                        <div class="info-detail">${a.message || "Aucun détail"}</div>\n                        ${popup ? '<button class="traffic-popup-close" type="button" aria-label="Fermer" onclick="closeTrafficPopup(this)"><i class="ti ti-x"></i></button>' : ""}\n                    </div>`;
   };
   list.innerHTML = items.map(a => trafficItemHtml(a, false)).join("");
   let seen = null;
