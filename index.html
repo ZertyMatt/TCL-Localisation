@@ -791,6 +791,7 @@
         }
 
         /* ===== Mode léger (téléphones peu puissants) ===== */
+        .info-list .info-item { content-visibility: auto; contain-intrinsic-size: auto 84px; }   /* éléments hors écran non calculés */
         html.lite { --glass-bg: #0A111F; }
         html.lite *, html.lite *::before, html.lite *::after { box-shadow: none !important; text-shadow: none !important; transition: none !important; animation: none !important; }
         html.lite #info-panel { transition: transform .2s ease !important; }
@@ -1237,8 +1238,8 @@ window.lineBadge = (function () {
         document.documentElement.classList.toggle('lite', !!LITE);
         const map = L.map('map', Object.assign({ preferCanvas: true, zoomControl: false },
             LITE ? { zoomAnimation: false, fadeAnimation: false, markerZoomAnimation: false, inertia: false } : {})).setView([45.757, 4.832], 13);
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 16, maxZoom: 19, updateWhenZooming: false, updateWhenIdle: !!LITE, keepBuffer: LITE ? 1 : 2, attribution: 'Tiles © Esri — données © OpenStreetMap contributors' }).addTo(map);
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 16, maxZoom: 19, updateWhenIdle: !!LITE, keepBuffer: LITE ? 1 : 2 }).addTo(map);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 16, maxZoom: 19, updateWhenZooming: false,  attribution: 'Tiles © Esri — données © OpenStreetMap contributors' }).addTo(map);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxNativeZoom: 16, maxZoom: 19 }).addTo(map);
 
         let busLayer     = L.layerGroup().addTo(map);
         let parkingLayer = L.layerGroup().addTo(map);
@@ -1520,10 +1521,10 @@ window.lineBadge = (function () {
         function sortStopsAlphabetically(stops) { return [...stops].sort((a,b)=>((a.nom||"").toLowerCase()).localeCompare((b.nom||"").toLowerCase())); }
 
         // ==================== ARRÊTS ====================
-        let sortedStops = null, stopsLimit = 60, stopSearchTimer = null, prefetchedStops = null;
+        let sortedStops = null, stopsLimit = LITE ? 30 : 60, stopSearchTimer = null, prefetchedStops = null;
         let stopLineFilter = null;   // quand on clique sur une ligne : on filtre sur l'ID exact de la ligne
         function linesOf(stop) { return stop._lines || (stop._lines = extractLines(stop.desserte)); }
-        window.showMoreStops = () => { stopsLimit += 100; renderStopList(document.getElementById('stop-search').value.toLowerCase().trim()); };
+        window.showMoreStops = () => { stopsLimit += LITE ? 50 : 100; renderStopList(document.getElementById('stop-search').value.toLowerCase().trim()); };
         function renderStopList(searchTerm = '') {
             if (!sortedStops) sortedStops = sortStopsAlphabetically(allStops);
             let stops = sortedStops;
@@ -1532,13 +1533,18 @@ window.lineBadge = (function () {
                 searchTerm = '';
             } else if (searchTerm) {
                 const term = searchTerm.toLowerCase();
-                const q = fuzzyQuery(searchTerm), exact = [], approx = [];
-                for (const s of stops) {
+                const q = fuzzyQuery(searchTerm), exact = [], rest = [];
+                for (const s of stops) {   // passe 1 (rapide) : correspondances exactes, sans accents ni tirets
                     if (linesOf(s).some(l => l.toLowerCase() === term)) { exact.push(s); continue; }
-                    const sc = fuzzyScore(s._fz || (s._fz = fuzzyIndex((s.nom || '') + ' ' + (s.commune || ''))), q);
-                    if (sc === 0) exact.push(s); else if (sc === 1) approx.push(s);
+                    const idx = s._fz || (s._fz = fuzzyIndex((s.nom || '') + ' ' + (s.commune || '')));
+                    if (!q.n || idx.n.includes(q.n) || idx.c.includes(q.c)) exact.push(s); else rest.push(s);
                 }
-                stops = exact.concat(approx);   // d'abord les correspondances exactes, puis celles avec fautes
+                stops = exact;
+                if (exact.length < 12 && q.n.length >= 3) {   // passe 2 (plus lente) : fautes de frappe, seulement s'il y a peu de résultats
+                    const approx = [];
+                    for (const s of rest) if (fuzzyScore(s._fz, q) >= 0) approx.push(s);
+                    stops = exact.concat(approx);
+                }
             }
             document.getElementById('search-stats').textContent = `${stops.length}/${allStops.length}`;
             if (!stops.length) { document.getElementById('stops-list').innerHTML = '<div class="info-empty"><span class="ico-loupe"></span>Aucun arrêt trouvé</div>'; return; }
@@ -1674,11 +1680,16 @@ window.lineBadge = (function () {
             currentStopMarker.openPopup();
         };
 
+        // Index de recherche construit une seule fois, dès que la barre de recherche est touchée (pas pendant la frappe)
+        document.getElementById('stop-search').addEventListener('focus', () => {
+            if (!sortedStops) sortedStops = sortStopsAlphabetically(allStops);
+            for (const st of sortedStops) st._fz || (st._fz = fuzzyIndex((st.nom || '') + ' ' + (st.commune || '')));
+        }, { once: true });
         window.filterStops = () => {
             if (stopLineFilter && document.getElementById('stop-search').value.trim() !== stopLineFilter) stopLineFilter = null;
             clearTimeout(stopSearchTimer);
             stopSearchTimer = setTimeout(() => {
-                stopsLimit = 60;
+                stopsLimit = LITE ? 30 : 60;
                 renderStopList(document.getElementById('stop-search').value.toLowerCase().trim());
             }, 250);
         };
@@ -1726,7 +1737,7 @@ window.lineBadge = (function () {
             stopLineFilter = line;
             switchToTab('stops');
             document.getElementById('stop-search').value = line;
-            stopsLimit = 60;
+            stopsLimit = LITE ? 30 : 60;
             if (currentTracesLine !== line) { currentTraces = []; currentTracesLine = line; }
             showLineStopsOnMap(line);
             renderStopList(line.toLowerCase());
@@ -1734,7 +1745,7 @@ window.lineBadge = (function () {
                 if (currentStopsLine !== line || !tr.length || tr === currentTraces) return;
                 currentTraces = tr; currentTracesLine = line;
                 showLineStopsOnMap(line, currentLineSens, true);
-                if (stopLineFilter === line) { stopsLimit = 60; renderStopList(''); }
+                if (stopLineFilter === line) { stopsLimit = LITE ? 30 : 60; renderStopList(''); }
             });
         };
 
@@ -2080,7 +2091,7 @@ window.lineBadge = (function () {
         window.setLineSens = (sens) => {
             if (!currentStopsLine) return;
             showLineStopsOnMap(currentStopsLine, sens, true);
-            if (stopLineFilter === currentStopsLine) { stopsLimit = 60; renderStopList(''); }   // la liste suit le sens choisi
+            if (stopLineFilter === currentStopsLine) { stopsLimit = LITE ? 30 : 60; renderStopList(''); }   // la liste suit le sens choisi
         };
         function showLineStopsOnMap(line, sens, keepView, bus) {
             followBus = bus || null; lineStopItems = [];
@@ -2263,7 +2274,7 @@ window.lineBadge = (function () {
 
         function scheduleBusUpdate() {
             clearTimeout(busRenderTimeout);
-            busRenderTimeout = setTimeout(updateVisibleBuses, LITE ? 500 : 250);
+            busRenderTimeout = setTimeout(updateVisibleBuses, 250);
         }
 
         // N'affiche que les bus situés dans la zone visible de la carte (comme pour les Vélo'v)
@@ -2273,6 +2284,7 @@ window.lineBadge = (function () {
             return lineColor(line) || bus.color || (isTram ? '#10B3C5' : '#DA1A0E');   // même couleur que l'indice de ligne
         }
 
+        const busIconKey = (bus) => canonLine(bus.line) + '|' + (Number(bus.bearing) || 0) + '|' + busColorOf(canonLine(bus.line), bus);
         function busIcon(bus) {
             const line = canonLine(bus.line);
             const bearingNum = Number(bus.bearing), hasDir = isFinite(bearingNum) && bearingNum !== 0, rotation = hasDir ? bearingNum : 0;
@@ -2327,11 +2339,11 @@ window.lineBadge = (function () {
                         // le bus a bougé / changé : on met à jour le même marqueur, le pop-up ouvert le suit
                         entry.hash = h; entry.bus = bus;
                         // pop-up ouvert : il suit le bus mais la carte ne bouge pas (autoPan coupé pendant la mise à jour)
-                        const pp = entry.marker.getPopup(), ap = pp && pp.options.autoPan;
+                        const ik = busIconKey(bus), pp = entry.marker.getPopup(), ap = pp && pp.options.autoPan;
                         if (pp) pp.options.autoPan = false;
                         try {
                             entry.marker.setLatLng([lat, lon]);
-                            entry.marker.setIcon(busIcon(bus));
+                            if (entry.ik !== ik) { entry.marker.setIcon(busIcon(bus)); entry.ik = ik; }
                             if (entry.marker.isPopupOpen()) { const html = busPopupHtml(bus); if (html !== entry.html) { entry.html = html; pp.update(); } }
                         } finally { if (pp) pp.options.autoPan = ap; }
                         if (followBus && busKey(followBus) === key) { followBus = bus; refreshPassed(); }
@@ -2341,7 +2353,7 @@ window.lineBadge = (function () {
                         .bindPopup(() => busPopupHtml((busMarkers.get(key) || {}).bus || bus), { maxWidth:260, className:'tcl-popup' })
                         .on('click', () => showBusLineStops((busMarkers.get(key) || {}).bus || bus))
                         .addTo(busLayer);
-                    busMarkers.set(key, { marker, hash: h, bus });
+                    busMarkers.set(key, { marker, hash: h, bus, ik: busIconKey(bus) });
                 } catch (e) { console.warn('Bus ignoré :', bus && bus.id, bus && bus.line, e); } }
                 for (const [id, entry] of busMarkers) {
                     if (!seenIds.has(id)) { busLayer.removeLayer(entry.marker); busMarkers.delete(id); }
@@ -2890,13 +2902,17 @@ window.lineBadge = (function () {
             let stations = [...allVelovStations];
             stations.sort((a,b) => (a.name||"").localeCompare(b.name||""));
             if (searchTerm) {
-                const q = fuzzyQuery(searchTerm), exact = [], approx = [];
+                const q = fuzzyQuery(searchTerm), exact = [], rest = [];
                 for (const s of stations) {
-                    if ((s.number || '').toString().includes(searchTerm)) { exact.push(s); continue; }
-                    const sc = fuzzyScore(s._fz || (s._fz = fuzzyIndex((s.name || '') + ' ' + (s.address || '') + ' ' + (s.commune || ''))), q);
-                    if (sc === 0) exact.push(s); else if (sc === 1) approx.push(s);
+                    const idx = s._fz || (s._fz = fuzzyIndex((s.name || '') + ' ' + (s.address || '') + ' ' + (s.commune || '')));
+                    if ((s.number || '').toString().includes(searchTerm) || !q.n || idx.n.includes(q.n) || idx.c.includes(q.c)) exact.push(s); else rest.push(s);
                 }
-                stations = exact.concat(approx);
+                stations = exact;
+                if (exact.length < 12 && q.n.length >= 3) {
+                    const approx = [];
+                    for (const s of rest) if (fuzzyScore(s._fz, q) >= 0) approx.push(s);
+                    stations = exact.concat(approx);
+                }
             }
             document.getElementById('velov-stats').textContent = `${stations.length}/${allVelovStations.length}`;
             if (!stations.length) { document.getElementById('velov-list').innerHTML = '<div class="info-empty"><span class="ico-loupe"></span>Aucune station trouvée</div>'; return; }
@@ -2971,8 +2987,8 @@ window.lineBadge = (function () {
         });
 
         const whenVisible = (fn) => () => { if (!document.hidden) fn(); };
-        setInterval(whenVisible(updateBus),            LITE ? 20_000 : 10_000);
-        setInterval(whenVisible(updateVelov),          LITE ? 120_000 : 60_000);
+        setInterval(whenVisible(updateBus),            10_000);
+        setInterval(whenVisible(updateVelov),          60_000);
         setInterval(whenVisible(updateParkingsTR),     60_000);
         setInterval(whenVisible(updateTraffic),       120_000);
         setInterval(whenVisible(updateAccessibility), 120_000);
