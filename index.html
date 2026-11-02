@@ -4,6 +4,10 @@
     <title>TCL Localisation</title>
     <meta charset="utf-8" />
     <meta name="color-scheme" content="only light">
+    <meta name="theme-color" content="#0A111F">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.x/dist/tabler-icons.min.css">
@@ -914,6 +918,8 @@
 <script>
         // Adresse du backend : local (127.0.0.1 / localhost / fichier ouvert directement) -> Flask sur le PC ; sinon -> Render
         const API_BASE = (['127.0.0.1', 'localhost', ''].includes(location.hostname) || location.protocol === 'file:') ? 'http://127.0.0.1:5000' : 'https://tcl-localisation.onrender.com';
+        // Appli installable (PWA) : service worker enregistré uniquement en HTTPS
+        if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 
         // ==================== CACHE D'IMAGES ====================
         const imgCache = new Map();

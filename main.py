@@ -971,7 +971,8 @@ def refresh_cache():
 
 # --- Le site lui-même : index.html à la racine de l'adresse du service (seulement ces fichiers, jamais main.py ni le reste du dossier) ---
 SITE_DIR = os.path.dirname(os.path.abspath(__file__))
-SITE_FILES = {'': 'index.html', 'index.html': 'index.html', 'parc.json': 'parc.json', 'TCL.ttf': 'TCL.ttf'}
+SITE_FILES = {n: n for n in ('index.html', 'parc.json', 'TCL.ttf', 'manifest.json', 'sw.js', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png')}
+SITE_FILES[''] = 'index.html'
 
 @app.route('/')
 @app.route('/<name>')
