@@ -969,6 +969,20 @@ def refresh_cache():
             else:
                 fetch_with_cache(name, urls[name])
 
+# --- Le site lui-même : index.html à la racine de l'adresse du service (seulement ces fichiers, jamais main.py ni le reste du dossier) ---
+SITE_DIR = os.path.dirname(os.path.abspath(__file__))
+SITE_FILES = {'': 'index.html', 'index.html': 'index.html', 'parc.json': 'parc.json', 'TCL.ttf': 'TCL.ttf'}
+
+@app.route('/')
+@app.route('/<name>')
+def site_file(name=''):
+    from flask import send_from_directory, abort
+    f = SITE_FILES.get(name)
+    if not f or not os.path.exists(os.path.join(SITE_DIR, f)):
+        abort(404)
+    return send_from_directory(SITE_DIR, f)
+
+
 # --- Diagnostic réseau : à ouvrir sur le Space (/api/diag) quand les données ne se chargent pas ---
 @app.route('/api/diag')
 def diag():
