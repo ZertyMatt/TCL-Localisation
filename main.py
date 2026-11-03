@@ -18,6 +18,8 @@ except Exception:
     PARIS_TZ = None   # pas de fuseau dispo (Windows sans tzdata) : on prend l'heure de la machine
 import threading
 import time
+import gc
+import ctypes
 from dotenv import load_dotenv
 
 load_dotenv()  # Charge automatiquement le fichier .env
@@ -90,6 +92,14 @@ def fast_json(key, data):
         resp.headers['Content-Encoding'] = 'gzip'
     resp.headers['Vary'] = 'Accept-Encoding'
     return resp
+
+def trim_memory():
+    """Après un gros chargement : ramasse les déchets et rend la mémoire libre au système (sinon Render la compte toujours)"""
+    gc.collect()
+    try:
+        ctypes.CDLL('libc.so.6').malloc_trim(0)   # Linux (Render) ; ignoré ailleurs
+    except Exception:
+        pass
 
 # Petit cache de 5 s pour les bus (plusieurs onglets ouverts = une seule requête vers Grand Lyon)
 bus_cache = {'t': 0, 'data': None}
@@ -325,7 +335,7 @@ def flatten_line(geom):
                     pts.append(pt)
     return pts
 
-lines_data = {}                 # LIGNE -> [tracés], accumulé famille par famille
+lines_bytes = {}                # LIGNE -> octets JSON, accumulé famille par famille (plus d'objets Python gardés en mémoire)
 lines_data_lock = threading.Lock()
 
 def load_line_family(kind, meta_name, wfs_name):
@@ -363,16 +373,17 @@ def load_line_family(kind, meta_name, wfs_name):
     if not local:
         print(f"✗ tracés {kind} : aucune géométrie exploitable")
         return
+    packed = {ligne: json.dumps({"values": traces}, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
+              for ligne, traces in local.items()}
+    del geo, meta, info, local   # gros objets : libérés tout de suite
     with lines_data_lock:
-        lines_data.update(local)
-        cache['lines'] = {
-            ligne: json.dumps({"values": traces}, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
-            for ligne, traces in lines_data.items()
-        }
+        lines_bytes.update(packed)
+        cache['lines'] = dict(lines_bytes)
         cache['last_update']['lines'] = time.time()
         initial_load_status['lines'] = True
         loaded_events['lines'].set()
-    print(f"✓ tracés {kind} chargés ({len(local)} lignes, {len(info)} sens dans le datapusher)")
+    print(f"✓ tracés {kind} chargés ({len(packed)} lignes)")
+    trim_memory()
 
 def fetch_lines():
     lock = fetch_locks['lines']
@@ -380,11 +391,11 @@ def fetch_lines():
         return False
     try:
         print("Chargement de lines (tracés)...")
-        threads = [threading.Thread(target=load_line_family, args=src) for src in LINE_SOURCES]   # en parallèle
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+        for src in LINE_SOURCES:   # l'une après l'autre : en parallèle, les 3 gros fichiers WFS faisaient exploser la mémoire
+            try:
+                load_line_family(*src)
+            except Exception as e:
+                print(f"✗ Erreur tracés {src[0]}: {e}")
         return cache['lines'] is not None
     except Exception as e:
         print(f"✗ Erreur lines: {e}")
@@ -454,9 +465,9 @@ def read_gtfs_covoit(arrets):
 
     def rows(name):
         if name not in z.namelist():
-            return []
+            return
         with z.open(name) as f:
-            return list(csv.DictReader(io.TextIOWrapper(f, encoding='utf-8-sig')))
+            yield from csv.DictReader(io.TextIOWrapper(f, encoding='utf-8-sig'))
 
     routes = {x['route_id']: x for x in rows('routes.txt')}
     stops = {x['stop_id']: x for x in rows('stops.txt')}
@@ -832,7 +843,7 @@ def get_stops_cached():
 # --- Prochains passages aux arrêts (Grand Lyon : tclpassagearret) : temps réel (type E) et théorique (type T) ---
 # Une ligne par passage : id = identifiant de l'arrêt, ligne, direction = destination, heurepassage, type E/T, idtarretdestination
 PASSAGES_URL = "https://data.grandlyon.com/fr/datapusher/ws/rdata/tcl_sytral.tclpassagearret/all.json?maxfeatures=-1&start=1"
-PASSAGES_EVERY = 20   # secondes : le jeu est mis à jour chaque minute, on ne le redemande pas plus souvent
+PASSAGES_EVERY = 60   # secondes : le jeu est mis à jour chaque minute, on ne le redemande pas plus souvent
 # Codes de ligne du jeu de passages -> numéro affiché (bus)
 PASSAGE_LINES = {'4133': '243', '5001': '231', '2004': '240', '5003': '218', '3086': '245', '3084': '165'}
 passages = {'by_stop': None, 't': 0, 'error': None}
@@ -861,6 +872,8 @@ def refresh_passages():
     passages['t'] = time.time()
     passages['error'] = None
     print(f"✓ prochains passages : {len(data.get('values', []))} passages sur {len(by_stop)} arrêts")
+    del data
+    trim_memory()
 
 @app.route('/api/stop-passages/<stop_id>')
 def get_stop_passages(stop_id):
@@ -903,13 +916,13 @@ def initial_load():
     parking_thread.start()
     threads.append(parking_thread)
 
-    lines_thread = threading.Thread(target=fetch_lines)
-    lines_thread.start()
-    threads.append(lines_thread)
-
-    covoit_thread = threading.Thread(target=fetch_covoit)
-    covoit_thread.start()
-    threads.append(covoit_thread)
+    def heavy_loads():   # jeux lourds : l'un après l'autre pour ne pas cumuler leurs pics de mémoire
+        fetch_lines()
+        fetch_covoit()
+        trim_memory()
+    heavy_thread = threading.Thread(target=heavy_loads)
+    heavy_thread.start()
+    threads.append(heavy_thread)
     
     endpoints = [
         ('traffic', 'https://data.grandlyon.com/fr/datapusher/ws/rdata/tcl_sytral.tclalertetrafic_2/all.json?maxfeatures=-1&start=1'),
@@ -933,6 +946,7 @@ def initial_load():
     for name, status in initial_load_status.items():
         print(f"  {name.upper()}: {'✅ CHARGÉ' if status else '❌ ÉCHEC'}")
     print("="*50)
+    trim_memory()
     print("✅ Serveur prêt !")
     print("="*50 + "\n")
 
