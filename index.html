@@ -801,7 +801,7 @@ img[loading=lazy].img-ok { opacity: 1; }
 <div class="credits-section"><h3><i class="ti ti-bus"></i>TCL Localisation</h3><p>Application de localisation en temps réel des transports en commun lyonnais.</p></div>
 <div class="credits-section"><h3><i class="ti ti-database"></i>Sources de données</h3><p>Données fournies par <a href="https://data.grandlyon.com" target="_blank">data.grandlyon.com</a></p></div>
 <div class="credits-section"><h3><i class="ti ti-map-2"></i>Cartographie</h3><p>© <a href="https://www.openstreetmap.org" target="_blank">OpenStreetMap</a></p></div>
-<div class="credits-section"><h3><i class="ti ti-code"></i>Développement</h3><p>Préversion v1.11 - Novembre 2026</p></div>
+<div class="credits-section"><h3><i class="ti ti-code"></i>Développement</h3><p>Préversion v1.12 - Novembre 2026</p></div>
 </div>
 </div>
 <div id="velov-pane" class="tab-pane">
@@ -1502,6 +1502,114 @@ const playEnter = els => {
  });
 })();
 
+// Zoom à un doigt (comme Google Maps) : double-toucher, puis glisser sans relever le doigt (vers le bas = zoom avant, vers le haut = zoom arrière).
+// Un simple double-toucher garde le zoom +1 de Leaflet ; le pincement à deux doigts n'est pas touché.
+(() => {
+ if (!L.Browser.touch) return;
+ const el = map.getContainer(), DT_MS = 300, DT_DIST = 40, MOVE = 8, PX_PER_ZOOM = 110;
+ let last = null, down = null, st = null;
+ const clamp = z => Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), z));
+ const finish = () => {
+  const s = st;
+  st = null;
+  map.dragging.enable();
+  if (!s || !s.active) return;
+  cancelAnimationFrame(s.raf);
+  const zr = clamp(Math.round(s.z)), delta = s.pt.subtract(map.getSize().divideBy(2));
+  map.setView(map.unproject(map.project(s.anchor, zr).subtract(delta), zr), zr, {
+   animate: true
+  });
+  setTimeout(() => map.doubleClickZoom.enable(), 400);
+ };
+ el.addEventListener("touchstart", e => {
+  if (e.touches.length !== 1) {
+   if (st) finish();
+   down = last = null;
+   return;
+  }
+  if (e.target.closest && e.target.closest(".leaflet-control, .leaflet-popup")) {
+   down = last = null;
+   return;
+  }
+  const t = e.touches[0], now = Date.now();
+  down = {
+   t: now,
+   x: t.clientX,
+   y: t.clientY,
+   moved: false
+  };
+  if (last && now - last.t < DT_MS && Math.hypot(t.clientX - last.x, t.clientY - last.y) < DT_DIST) {
+   const r = el.getBoundingClientRect();
+   st = {
+    y: t.clientY,
+    pt: L.point(t.clientX - r.left, t.clientY - r.top),
+    z0: map.getZoom(),
+    z: map.getZoom(),
+    active: false
+   };
+   map.dragging.disable();
+  }
+  last = null;
+ }, {
+  capture: true,
+  passive: true
+ });
+ el.addEventListener("touchmove", e => {
+  if (down && Math.hypot(e.touches[0].clientX - down.x, e.touches[0].clientY - down.y) > MOVE) down.moved = true;
+  if (!st) return;
+  if (e.touches.length !== 1) {
+   finish();
+   return;
+  }
+  const dy = e.touches[0].clientY - st.y;
+  if (!st.active) {
+   if (Math.abs(dy) < MOVE) return;
+   st.active = true;
+   st.anchor = map.containerPointToLatLng(st.pt);
+   map.doubleClickZoom.disable();
+   map._moveStart(true, false);
+  }
+  e.preventDefault();
+  e.stopPropagation();
+  const z = clamp(st.z0 + dy / PX_PER_ZOOM);
+  if (z === st.z) return;
+  st.z = z;
+  const delta = st.pt.subtract(map.getSize().divideBy(2)), center = map.unproject(map.project(st.anchor, z).subtract(delta), z);
+  cancelAnimationFrame(st.raf);
+  st.raf = requestAnimationFrame(() => map._move(center, z, {
+   pinch: true,
+   round: false
+  }));
+ }, {
+  capture: true,
+  passive: false
+ });
+ el.addEventListener("touchend", e => {
+  const d = down;
+  down = null;
+  if (st) {
+   finish();
+   last = null;
+   return;
+  }
+  if (d && !d.moved && Date.now() - d.t < 250 && e.touches.length === 0) last = {
+   t: Date.now(),
+   x: d.x,
+   y: d.y
+  };
+ }, {
+  capture: true,
+  passive: true
+ });
+ el.addEventListener("touchcancel", () => {
+  down = last = null;
+  if (st) finish();
+ }, {
+  capture: true,
+  passive: true
+ });
+})();
+
 const togglePanel = () => {
  document.getElementById("info-panel").classList.toggle("collapsed");
  setTimeout(() => map.invalidateSize(), 300);
@@ -1571,7 +1679,14 @@ function switchToTab(tabName) {
  if (tabName === "traffic" || tabName === "accessibility") playEnter([ ...document.querySelectorAll(`#${tabName}-list .info-item`) ]);
 }
 
-document.querySelectorAll(".header-tab").forEach(btn => btn.addEventListener("click", () => switchToTab(btn.dataset.tab)));
+document.querySelectorAll(".header-tab").forEach(btn => btn.addEventListener("click", () => {
+ const panel = document.getElementById("info-panel");
+ if (panel.classList.contains("collapsed")) {
+  panel.classList.remove("collapsed");
+  setTimeout(() => map.invalidateSize(), 300);
+ }
+ switchToTab(btn.dataset.tab);
+}));
 
 const appHeader = document.querySelector(".app-header");
 
