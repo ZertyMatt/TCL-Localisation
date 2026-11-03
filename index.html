@@ -801,7 +801,7 @@ img[loading=lazy].img-ok { opacity: 1; }
 <div class="credits-section"><h3><i class="ti ti-bus"></i>TCL Localisation</h3><p>Application de localisation en temps réel des transports en commun lyonnais.</p></div>
 <div class="credits-section"><h3><i class="ti ti-database"></i>Sources de données</h3><p>Données fournies par <a href="https://data.grandlyon.com" target="_blank">data.grandlyon.com</a></p></div>
 <div class="credits-section"><h3><i class="ti ti-map-2"></i>Cartographie</h3><p>© <a href="https://www.openstreetmap.org" target="_blank">OpenStreetMap</a></p></div>
-<div class="credits-section"><h3><i class="ti ti-code"></i>Développement</h3><p>Préversion v1.12 - Novembre 2026</p></div>
+<div class="credits-section"><h3><i class="ti ti-code"></i>Développement</h3><p>Préversion v1.13 - Novembre 2026</p></div>
 </div>
 </div>
 <div id="velov-pane" class="tab-pane">
@@ -3038,7 +3038,7 @@ const busKey = bus => bus.id + "|" + bus.line;
 
 function busHasDirection(bus) {
  if (/^NAVI/.test(canonLine(bus.line))) return false;
- if (/^TB/i.test(String(bus.line || ""))) return true;
+ if (/^(TB|RX)/i.test(String(bus.line || ""))) return true;
  const v = getParcVehicle(bus);
  if (!v || v.bateau) return false;
  const ex = v.exploitant || "";
