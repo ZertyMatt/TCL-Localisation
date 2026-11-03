@@ -801,8 +801,8 @@ img[loading=lazy].img-ok { opacity: 1; }
 <div class="credits-section"><h3><i class="ti ti-bus"></i>TCL Localisation</h3><p>Application de localisation en temps réel des transports en commun lyonnais.</p></div>
 <div class="credits-section"><h3><i class="ti ti-database"></i>Sources de données</h3><p>Données fournies par <a href="https://data.grandlyon.com" target="_blank">data.grandlyon.com</a></p></div>
 <div class="credits-section"><h3><i class="ti ti-map-2"></i>Cartographie</h3><p>© <a href="https://www.openstreetmap.org" target="_blank">OpenStreetMap</a></p></div>
-<!-- ⚠️ VERSION : à chaque modification de ce fichier, augmenter le numéro de version de +1 (ex. v1.17 → v1.18) sur la ligne juste en dessous. -->
-<div class="credits-section"><h3><i class="ti ti-code"></i>Développement</h3><p>Préversion v1.17 - Novembre 2026</p></div>
+<!-- ⚠️ VERSION : à chaque modification de ce fichier, augmenter le numéro de version de +1 (ex. v1.18 → v1.19) sur la ligne juste en dessous. -->
+<div class="credits-section"><h3><i class="ti ti-code"></i>Développement</h3><p>Préversion v1.18 - Novembre 2026</p></div>
 </div>
 </div>
 <div id="velov-pane" class="tab-pane">
@@ -3134,7 +3134,6 @@ function vehicleDetailsHtml(bus) {
  const MUTED = "#5A78B5", TXT = "#91A6D9";
  const cell = (icon, text, title, color) => '<div title="' + (title || "") + '" style="display:flex;align-items:center;gap:5px;min-width:0;font-size:11px;color:' + TXT + ';">' + '<i class="ti ti-' + icon + '" style="font-size:14px;color:' + (color || MUTED) + ';flex-shrink:0;"></i>' + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + text + "</span></div>";
  const flag = (on, iconOn, iconOff, title, color) => '<div title="' + title + '" style="display:flex;align-items:center;">' + '<i class="ti ti-' + (on ? iconOn : iconOff) + '" style="font-size:18px;color:' + (on ? color : MUTED) + ';"></i></div>';
- if (v.bateau) return '<div style="display:grid;grid-template-columns:1fr;gap:6px 10px;margin-top:2px;">' + cell("building", v.exploitant, "Exploitant") + "</div>";
  const norme = (v.n || "").toLowerCase();
  const nIcon = /lectri/.test(norme) ? "bolt" : /gnv/.test(norme) ? "flame" : /hybrid/.test(norme) ? "leaf" : "gas-station";
  const climOn = v.c === 1 || v.c === "cond";
@@ -3143,7 +3142,7 @@ function vehicleDetailsHtml(bus) {
  if (v.a) items.push(cell("calendar", v.a, "Mise en service"));
  items.push(cell("building", v.exploitant, "Exploitant"));
  if (v.n) items.push(cell(nIcon, v.n, "Norme / carburant"));
- items.push('<div style="display:flex;gap:10px;align-items:center;">' + flag(!!v.p, "wheelchair", "wheelchair-off", v.p ? "Accessible PMR" : "Non accessible PMR", "#9DB689") + flag(climOn, "snowflake", "snowflake-off", v.c === "cond" ? "Climatisation conducteur seul" : v.c === 1 ? "Climatisé" : "Non climatisé", v.c === "cond" ? "#FFBA7F" : "#10B3C5") + "</div>");
+ items.push('<div style="display:flex;gap:10px;align-items:center;">' + flag(!!v.p, "wheelchair", "wheelchair-off", v.p ? "Accessible PMR" : "Non accessible PMR", "#9DB689") + (v.bateau ? "" : flag(climOn, "snowflake", "snowflake-off", v.c === "cond" ? "Climatisation conducteur seul" : v.c === 1 ? "Climatisé" : "Non climatisé", v.c === "cond" ? "#FFBA7F" : "#10B3C5")) + "</div>");
  if (v.g) items.push(cell("signboard", v.g, "Girouette"));
  if (v.s) items.push(cell("info-circle", v.s, "Statut", "#FFBA7F"));
  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-top:2px;">' + items.join("") + "</div>";

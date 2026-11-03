@@ -110,7 +110,8 @@
 {"c":"Peugeot","m":"e-Expert III","nom":"Peugeot e-Expert III"},
 {"c":"Tremonia","m":"Sprinter Transfer 45","nom":"Tremonia Sprinter Transfer 45"},
 {"c":"Irisbus","m":"Cristalis ETB 18","nom":"Irisbus Cristalis ETB 18"},
-{"c":"-","m":"Navette fluviale","nom":"Navette fluviale Navigône"}
+{"c":"OCEA","m":"Waterbus 21","nom":"OCEA Waterbus 21"},
+{"c":"Fountaine-Pajot","m":"IRIS 37","nom":"Fountaine-Pajot IRIS 37"}
 ],
 "exploitants":["RATP Dev Lyon","RD Lyon Express","Keolis BUS Lyon","Keolis Planche","-","Keolis Lyon","Transdev V.B.","Transdev RA","Courriers Rho.","Maisavia","Philibert","Venet","Vallée d'Azergues"],
 "vehicules":{
@@ -2205,10 +2206,10 @@
 "bus:245":{"m":98,"e":11,"i":"HH-754-JL","a":"2025-12","g":"LEDs","n":"Euro 6","p":0,"c":1},
 "bus:249":{"m":44,"e":11,"i":"HK-934-EQ","a":"2026-04","n":"Euro 6","p":0,"c":1},
 "bus:921":{"m":30,"e":12,"i":"AH-520-KX","a":"2009-12","g":"LEDs","n":"Euro 5","p":0,"c":0},
-"bateau:111":{"m":109,"e":0,"nom":"Le Gône","a":"-"},
-"bateau:112":{"m":109,"e":0,"nom":"La Fenotte","a":"-"},
-"bateau:113":{"m":109,"e":0,"nom":"Le Canut","a":"-"},
-"bateau:114":{"m":109,"e":0,"nom":"La Soyeuse","a":"-"},
-"bateau:120":{"m":109,"e":0,"nom":"La Mouche 1","a":"-"}
+"bateau:111":{"m":109,"e":0,"nom":"Le Gône","a":"2025-07","g":"LEDs","n":"Électrique","p":1},
+"bateau:112":{"m":109,"e":0,"nom":"La Fenotte","a":"2025-07","g":"LEDs","n":"Électrique","p":1},
+"bateau:113":{"m":109,"e":0,"nom":"Le Canut","a":"2026","g":"LEDs","n":"Électrique","p":1},
+"bateau:114":{"m":109,"e":0,"nom":"La Soyeuse","a":"2026","g":"LEDs","n":"Électrique","p":1},
+"bateau:120":{"m":110,"e":0,"nom":"La Mouche 1","i":"P017417F","a":"2008-11","g":"LEDs","n":"Diesel","s":"Réserve"}
 }
 }
