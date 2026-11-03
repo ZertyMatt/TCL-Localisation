@@ -1412,9 +1412,21 @@ let parkingLayer = L.layerGroup().addTo(map);
 const REDUCED_MOTION = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 (() => {
- const orig = L.Popup.prototype.onRemove;
+ // Leaflet réutilise le même conteneur DOM d'un pop-up à chaque réouverture :
+ // la classe "tcl-closing" doit donc être retirée à l'ouverture, sinon l'animation
+ // de fermeture reste "figée" et ne se rejoue plus à la fermeture suivante.
+ const origAdd = L.Popup.prototype.onAdd, orig = L.Popup.prototype.onRemove;
+ L.Popup.prototype.onAdd = function(m) {
+  if (this._container) this._container.classList.remove("tcl-closing");
+  return origAdd.call(this, m);
+ };
  L.Popup.prototype.onRemove = function(m) {
-  if (this._container && !REDUCED_MOTION) this._container.classList.add("tcl-closing");
+  const c = this._container;
+  if (c && !REDUCED_MOTION) {
+   c.classList.remove("tcl-closing");
+   void c.offsetWidth; // force le redémarrage de l'animation
+   c.classList.add("tcl-closing");
+  }
   return orig.call(this, m);
  };
 })();
