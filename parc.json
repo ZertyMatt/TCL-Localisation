@@ -1,5 +1,5 @@
 {
-"meta":{"source":"PARC TCL (version octobre 2026)","cle":"categorie:n° de parc (bus, tram, metro, funi, bateau)","champs":{"m":"index dans modeles","e":"index dans exploitants","i":"immatriculation","a":"mise en service AAAA-MM","g":"girouette (absente = aucune)","n":"norme / carburant","p":"PMR 1/0","c":"clim 1/0/\"cond\" (conducteur seul)","s":"statut si différent de \"En service\"","alt":"autres véhicules partageant le même n° (sous-traitants), primaire = réseau TCL en service"},"nb_vehicules":2091},
+"meta":{"source":"PARC TCL (version octobre 2026)","cle":"categorie:n° de parc (bus, tram, metro, funi, bateau)","champs":{"m":"index dans modeles","e":"index dans exploitants","i":"immatriculation","a":"mise en service AAAA-MM","g":"girouette (absente = aucune)","n":"norme / carburant","p":"PMR 1/0","c":"clim 1/0/\"cond\" (conducteur seul)","s":"statut si différent de \"En service\"","alt":"autres véhicules partageant le même n° (sous-traitants), primaire = réseau TCL en service","nom":"nom du véhicule (bateaux Navigône)"},"nb_vehicules":2096},
 "modeles":[
 {"c":"Gangloff-VonRoll","m":"Type Fourvière2","nom":"Gangloff-VonRoll Type Fourvière2"},
 {"c":"Gangloff-VonRoll","m":"Type Saint-Just","nom":"Gangloff-VonRoll Type Saint-Just"},
@@ -109,7 +109,8 @@
 {"c":"Mercedes-Benz","m":"Intouro III Hybrid","nom":"Mercedes-Benz Intouro III Hybrid"},
 {"c":"Peugeot","m":"e-Expert III","nom":"Peugeot e-Expert III"},
 {"c":"Tremonia","m":"Sprinter Transfer 45","nom":"Tremonia Sprinter Transfer 45"},
-{"c":"Irisbus","m":"Cristalis ETB 18","nom":"Irisbus Cristalis ETB 18"}
+{"c":"Irisbus","m":"Cristalis ETB 18","nom":"Irisbus Cristalis ETB 18"},
+{"c":"-","m":"Navette fluviale","nom":"Navette fluviale Navigône"}
 ],
 "exploitants":["RATP Dev Lyon","RD Lyon Express","Keolis BUS Lyon","Keolis Planche","-","Keolis Lyon","Transdev V.B.","Transdev RA","Courriers Rho.","Maisavia","Philibert","Venet","Vallée d'Azergues"],
 "vehicules":{
@@ -2203,6 +2204,11 @@
 "bus:244":{"m":98,"e":11,"i":"HH-625-JL","a":"2025-12","g":"LEDs","n":"Euro 6","p":0,"c":1},
 "bus:245":{"m":98,"e":11,"i":"HH-754-JL","a":"2025-12","g":"LEDs","n":"Euro 6","p":0,"c":1},
 "bus:249":{"m":44,"e":11,"i":"HK-934-EQ","a":"2026-04","n":"Euro 6","p":0,"c":1},
-"bus:921":{"m":30,"e":12,"i":"AH-520-KX","a":"2009-12","g":"LEDs","n":"Euro 5","p":0,"c":0}
+"bus:921":{"m":30,"e":12,"i":"AH-520-KX","a":"2009-12","g":"LEDs","n":"Euro 5","p":0,"c":0},
+"bateau:111":{"m":109,"e":0,"nom":"Le Gône","a":"-"},
+"bateau:112":{"m":109,"e":0,"nom":"La Fenotte","a":"-"},
+"bateau:113":{"m":109,"e":0,"nom":"Le Canut","a":"-"},
+"bateau:114":{"m":109,"e":0,"nom":"La Soyeuse","a":"-"},
+"bateau:120":{"m":109,"e":0,"nom":"La Mouche 1","a":"-"}
 }
 }
