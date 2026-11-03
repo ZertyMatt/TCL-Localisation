@@ -1388,7 +1388,29 @@ const map = L.map("map", Object.assign({
  fadeAnimation: true,
  markerZoomAnimation: true,
  inertia: true
-})).setView([ 45.757, 4.832 ], 13);
+})).setView(...(() => {
+ // Dernière vue (centre + zoom) mémorisée ; sinon vue par défaut sur Lyon
+ try {
+  const v = JSON.parse(localStorage.getItem("tcl-map-view") || "null");
+  if (v && isFinite(v.lat) && isFinite(v.lng) && isFinite(v.zoom) && Math.abs(v.lat) <= 85 && Math.abs(v.lng) <= 180 && v.zoom >= 1 && v.zoom <= 19) return [ [ v.lat, v.lng ], v.zoom ];
+ } catch (e) {}
+ return [ [ 45.757, 4.832 ], 13 ];
+})());
+
+(() => {
+ let t = null;
+ const save = () => {
+  try {
+   const c = map.getCenter();
+   localStorage.setItem("tcl-map-view", JSON.stringify({ lat: +c.lat.toFixed(5), lng: +c.lng.toFixed(5), zoom: map.getZoom() }));
+  } catch (e) {}
+ };
+ map.on("moveend zoomend", () => {
+  clearTimeout(t);
+  t = setTimeout(save, 400);
+ });
+ addEventListener("pagehide", save);
+})();
 
 L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}", {
  maxNativeZoom: 16,
