@@ -1,5 +1,5 @@
 {
-"meta":{"source":"PARC TCL (version octobre 2026)","cle":"categorie:n° de parc (bus, tram, metro, funi, bateau)","champs":{"m":"index dans modeles","e":"index dans exploitants","i":"immatriculation","a":"mise en service AAAA-MM","g":"girouette (absente = aucune)","n":"norme / carburant","p":"PMR 1/0","c":"clim 1/0/\"cond\" (conducteur seul)","s":"statut si différent de \"En service\"","alt":"autres véhicules partageant le même n° (sous-traitants), primaire = réseau TCL en service"},"nb_vehicules":2078},
+"meta":{"source":"PARC TCL (version octobre 2026)","cle":"categorie:n° de parc (bus, tram, metro, funi, bateau)","champs":{"m":"index dans modeles","e":"index dans exploitants","i":"immatriculation","a":"mise en service AAAA-MM","g":"girouette (absente = aucune)","n":"norme / carburant","p":"PMR 1/0","c":"clim 1/0/\"cond\" (conducteur seul)","s":"statut si différent de \"En service\"","alt":"autres véhicules partageant le même n° (sous-traitants), primaire = réseau TCL en service"},"nb_vehicules":2091},
 "modeles":[
 {"c":"Gangloff-VonRoll","m":"Type Fourvière2","nom":"Gangloff-VonRoll Type Fourvière2"},
 {"c":"Gangloff-VonRoll","m":"Type Saint-Just","nom":"Gangloff-VonRoll Type Saint-Just"},
@@ -108,7 +108,8 @@
 {"c":"Mercedes-Benz","m":"Intouro III M Hybrid","nom":"Mercedes-Benz Intouro III M Hybrid"},
 {"c":"Mercedes-Benz","m":"Intouro III Hybrid","nom":"Mercedes-Benz Intouro III Hybrid"},
 {"c":"Peugeot","m":"e-Expert III","nom":"Peugeot e-Expert III"},
-{"c":"Tremonia","m":"Sprinter Transfer 45","nom":"Tremonia Sprinter Transfer 45"}
+{"c":"Tremonia","m":"Sprinter Transfer 45","nom":"Tremonia Sprinter Transfer 45"},
+{"c":"Irisbus","m":"Cristalis ETB 18","nom":"Irisbus Cristalis ETB 18"}
 ],
 "exploitants":["RATP Dev Lyon","RD Lyon Express","Keolis BUS Lyon","Keolis Planche","-","Keolis Lyon","Transdev V.B.","Transdev RA","Courriers Rho.","Maisavia","Philibert","Venet","Vallée d'Azergues"],
 "vehicules":{
@@ -1005,6 +1006,19 @@
 "bus:2857":{"m":15,"e":2,"i":"-","a":"-","g":"LEDs","n":"Électrique","p":1,"c":1,"s":"En commande"},
 "bus:2858":{"m":15,"e":2,"i":"HM-317-LA","a":"2026-09","g":"LEDs","n":"Électrique","p":1,"c":1},
 "bus:2859":{"m":15,"e":2,"i":"HK-117-XA","a":"2026-05","g":"LEDs","n":"Électrique","p":1,"c":1},
+"bus:2903":{"m":108,"e":2,"i":"AS-806-DK","a":"2006-08","p":1,"c":1},
+"bus:2904":{"m":108,"e":2,"i":"AS-981-DK","a":"2006-08","p":1,"c":1},
+"bus:2906":{"m":108,"e":2,"i":"AS-153-DL","a":"2006-08","p":1,"c":1},
+"bus:2910":{"m":108,"e":2,"i":"BM-155-NA","a":"2007-01","p":1,"c":1},
+"bus:2914":{"m":108,"e":2,"i":"BD-893-GP","a":"2007-01","p":1,"c":1},
+"bus:2915":{"m":108,"e":2,"i":"BD-814-GP","a":"2007-01","p":1,"c":1},
+"bus:2916":{"m":108,"e":2,"i":"GH-698-MG","a":"2007-01","p":1,"c":1},
+"bus:2918":{"m":108,"e":2,"i":"AV-636-PD","a":"2010-06","p":1,"c":1},
+"bus:2919":{"m":108,"e":2,"i":"AV-682-PD","a":"2010-06","p":1,"c":1},
+"bus:2920":{"m":108,"e":2,"i":"AV-713-PD","a":"2010-06","p":1,"c":1},
+"bus:2923":{"m":108,"e":2,"i":"AV-804-PD","a":"2010-06","p":1,"c":1},
+"bus:2925":{"m":108,"e":2,"i":"AV-859-PD","a":"2010-06","p":1,"c":1},
+"bus:2926":{"m":108,"e":2,"i":"AV-895-PD","a":"2010-06","p":1,"c":1},
 "bus:3001":{"m":16,"e":2,"i":"DJ-135-DC","a":"2014-08","g":"LEDs","n":"Euro 6","p":1,"c":1},
 "bus:3002":{"m":16,"e":2,"i":"DQ-534-BW","a":"2015-03","g":"LEDs","n":"Euro 6","p":1,"c":1},
 "bus:3003":{"m":16,"e":2,"i":"DQ-938-HZ","a":"2015-03","g":"LEDs","n":"Euro 6","p":1,"c":1},
