@@ -801,8 +801,8 @@ img[loading=lazy].img-ok { opacity: 1; }
 <div class="credits-section"><h3><i class="ti ti-bus"></i>TCL Localisation</h3><p>Application de localisation en temps réel des transports en commun lyonnais.</p></div>
 <div class="credits-section"><h3><i class="ti ti-database"></i>Sources de données</h3><p>Données fournies par <a href="https://data.grandlyon.com" target="_blank">data.grandlyon.com</a></p></div>
 <div class="credits-section"><h3><i class="ti ti-map-2"></i>Cartographie</h3><p>© <a href="https://www.openstreetmap.org" target="_blank">OpenStreetMap</a></p></div>
-<!-- ⚠️ VERSION : à chaque modification de ce fichier, augmenter le numéro de version de +1 (ex. v1.15 → v1.16) sur la ligne juste en dessous. -->
-<div class="credits-section"><h3><i class="ti ti-code"></i>Développement</h3><p>Préversion v1.15 - Novembre 2026</p></div>
+<!-- ⚠️ VERSION : à chaque modification de ce fichier, augmenter le numéro de version de +1 (ex. v1.16 → v1.17) sur la ligne juste en dessous. -->
+<div class="credits-section"><h3><i class="ti ti-code"></i>Développement</h3><p>Préversion v1.16 - Novembre 2026</p></div>
 </div>
 </div>
 <div id="velov-pane" class="tab-pane">
@@ -3096,6 +3096,7 @@ const exploitantOfLine = line => {
 
 function parcCategory(bus) {
  const L = (bus.line || "").toUpperCase();
+ if (/^NAVI/.test(canonLine(bus.line))) return "bateau";
  return /^TB/.test(L) || L === "T36" ? "bus" : /^(T|RX)/.test(L) ? "tram" : "bus";
 }
 
@@ -3112,11 +3113,11 @@ function getParcVehicle(bus) {
  const L = (bus.line || "").toUpperCase();
  const cat = parcCategory(bus);
  const v = parc.vehicules[cat + ":" + parcNumber(bus)];
- if (!v && /^NAVI/.test(canonLine(bus.line))) return {
+ if (cat === "bateau") return Object.assign({}, v || {}, {
   bateau: true,
   modele: "Navigône",
-  exploitant: parc.exploitants.find(e => /^RATP/.test(e)) || "RATP Dev Lyon"
- };
+  exploitant: v && v.e != null && parc.exploitants[v.e] || parc.exploitants.find(e => /^RATP/.test(e)) || "RATP Dev Lyon"
+ });
  if (!v) return null;
  const want = exploitantOfLine(canonLine(bus.line));
  const pick = want && [ v ].concat(v.alt || []).find(c => parc.exploitants[c.e].toLowerCase().includes(want.toLowerCase())) || v;
@@ -3133,7 +3134,7 @@ function vehicleDetailsHtml(bus) {
  const MUTED = "#5A78B5", TXT = "#91A6D9";
  const cell = (icon, text, title, color) => '<div title="' + (title || "") + '" style="display:flex;align-items:center;gap:5px;min-width:0;font-size:11px;color:' + TXT + ';">' + '<i class="ti ti-' + icon + '" style="font-size:14px;color:' + (color || MUTED) + ';flex-shrink:0;"></i>' + '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + text + "</span></div>";
  const flag = (on, iconOn, iconOff, title, color) => '<div title="' + title + '" style="display:flex;align-items:center;">' + '<i class="ti ti-' + (on ? iconOn : iconOff) + '" style="font-size:18px;color:' + (on ? color : MUTED) + ';"></i></div>';
- if (v.bateau) return '<div style="display:grid;grid-template-columns:1fr;gap:6px 10px;margin-top:2px;">' + cell("building", v.exploitant, "Exploitant") + "</div>";
+ if (v.bateau) return '<div style="display:grid;grid-template-columns:1fr;gap:6px 10px;margin-top:2px;">' + (v.nom ? cell("ship", v.modele, "Type") : "") + cell("building", v.exploitant, "Exploitant") + "</div>";
  const norme = (v.n || "").toLowerCase();
  const nIcon = /lectri/.test(norme) ? "bolt" : /gnv/.test(norme) ? "flame" : /hybrid/.test(norme) ? "leaf" : "gas-station";
  const climOn = v.c === 1 || v.c === "cond";
@@ -3150,6 +3151,7 @@ function vehicleDetailsHtml(bus) {
 
 function getVehicleType(bus) {
  const v = getParcVehicle(bus);
+ if (v && v.bateau && v.nom) return v.nom;
  return v ? v.modele : "Véhicule TCL";
 }
 
@@ -3220,7 +3222,7 @@ function busPopupHtml(bus) {
  const delayOk = bus.delay === "0s";
  const vehImgs = getVehicleImages(bus);
  const img = vehImgs.length ? `<img src="${vehImgs[0]}" loading="lazy" decoding="async" data-next="${vehImgs.slice(1).join("|")}" alt="" onload="this.classList.add('img-ok');imgCache.set(this.getAttribute('src'),'ok')" onerror="imgCache.set(this.getAttribute('src'),'error');var q=this.dataset.next.split('|').filter(function(u){return u&&imgCache.get(u)!=='error'});if(q.length){this.dataset.next=q.slice(1).join('|');this.src=q[0]}else{this.closest('.bp-hero').classList.add('bp-nophoto')}">` : "";
- return `<div class="bp" style="--bp-c:${mainColor}">\n                <div class="bp-hero${vehImgs.length ? "" : " bp-nophoto"}">${img}<div class="bp-logo">${lineImgHtml(line, "32px")}</div></div>\n                <div class="bp-body">\n                    <div class="bp-top"><span class="bp-label">Direction</span><span class="bp-chip ${delayOk ? "bp-ok" : "bp-late"}">${delayOk ? "À l'heure" : bus.delay}</span></div>\n                    <div class="bp-dest">${dest}</div>\n                    <div class="bp-veh">\n                        <div class="bp-model"><i class="ti ti-bus"></i><span>${getVehicleType(bus)}</span><span class="bp-num"><i class="ti ti-hash"></i>${parcNumber(bus)}</span></div>\n                        ${vehicleDetailsHtml(bus)}\n                    </div>\n                </div>\n            </div>`;
+ return `<div class="bp" style="--bp-c:${mainColor}">\n                <div class="bp-hero${vehImgs.length ? "" : " bp-nophoto"}">${img}<div class="bp-logo">${lineImgHtml(line, "32px")}</div></div>\n                <div class="bp-body">\n                    <div class="bp-top"><span class="bp-label">Direction</span><span class="bp-chip ${delayOk ? "bp-ok" : "bp-late"}">${delayOk ? "À l'heure" : bus.delay}</span></div>\n                    <div class="bp-dest">${dest}</div>\n                    <div class="bp-veh">\n                        <div class="bp-model"><i class="ti ti-${/^NAVI/.test(line) ? "ship" : "bus"}"></i><span>${getVehicleType(bus)}</span><span class="bp-num"><i class="ti ti-hash"></i>${parcNumber(bus)}</span></div>\n                        ${vehicleDetailsHtml(bus)}\n                    </div>\n                </div>\n            </div>`;
 }
 
 function updateVisibleBuses() {
