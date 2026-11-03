@@ -801,8 +801,8 @@ img[loading=lazy].img-ok { opacity: 1; }
 <div class="credits-section"><h3><i class="ti ti-bus"></i>TCL Localisation</h3><p>Application de localisation en temps réel des transports en commun lyonnais.</p></div>
 <div class="credits-section"><h3><i class="ti ti-database"></i>Sources de données</h3><p>Données fournies par <a href="https://data.grandlyon.com" target="_blank">data.grandlyon.com</a></p></div>
 <div class="credits-section"><h3><i class="ti ti-map-2"></i>Cartographie</h3><p>© <a href="https://www.openstreetmap.org" target="_blank">OpenStreetMap</a></p></div>
-<!-- ⚠️ VERSION : à chaque modification de ce fichier, augmenter le numéro de version de +1 (ex. v1.18 → v1.19) sur la ligne juste en dessous. -->
-<div class="credits-section"><h3><i class="ti ti-code"></i>Développement</h3><p>Préversion v1.18 - Novembre 2026</p></div>
+<!-- ⚠️ VERSION : à chaque modification de ce fichier, augmenter le numéro de version de +1 (ex. v1.20 → v1.21) sur la ligne juste en dessous. -->
+<div class="credits-section"><h3><i class="ti ti-code"></i>Développement</h3><p>Préversion v1.20 - Novembre 2026</p></div>
 </div>
 </div>
 <div id="velov-pane" class="tab-pane">
@@ -1500,6 +1500,9 @@ const ICO_ELEVATOR = '<svg class="ico-eq" viewBox="0 0 24 24" aria-label="Ascens
 const ICO_ESCALATOR = '<svg class="ico-eq" viewBox="0 0 24 24" aria-label="Escalator"><path d="M2.5 20.5h4L17 10h4.5"/><path d="M3.5 15.5 14 5h6.5"/><path d="M8 19v-8M11 16V8M14 13V5" stroke-width="1.4"/></svg>';
 
 const busMarkers = new Map;
+
+const busAnims = new Set;   // bus en train de glisser vers leur nouvelle position
+let busAnimRaf = 0;
 
 const playEnter = els => {
  if (REDUCED_MOTION) return;
@@ -3115,7 +3118,8 @@ function getParcVehicle(bus) {
  const v = parc.vehicules[cat + ":" + parcNumber(bus)];
  if (cat === "bateau") return Object.assign({}, v || {}, {
   bateau: true,
-  modele: "Navigône",
+  modeleJson: !!(v && v.m != null && parc.modeles[v.m] && parc.modeles[v.m].nom),   // modèle lu dans parc.json (modeles)
+  modele: v && v.m != null && parc.modeles[v.m] && parc.modeles[v.m].nom || "Navigône",
   exploitant: v && v.e != null && parc.exploitants[v.e] || parc.exploitants.find(e => /^RATP/.test(e)) || "RATP Dev Lyon"
  });
  if (!v) return null;
@@ -3140,6 +3144,7 @@ function vehicleDetailsHtml(bus) {
  const items = [];
  if (v.i) items.push(cell("license", v.i, "Immatriculation"));
  if (v.a) items.push(cell("calendar", v.a, "Mise en service"));
+ if (v.bateau && v.modeleJson) items.push(cell("ship", v.modele, "Modèle"));
  items.push(cell("building", v.exploitant, "Exploitant"));
  if (v.n) items.push(cell(nIcon, v.n, "Norme / carburant"));
  items.push('<div style="display:flex;gap:10px;align-items:center;">' + flag(!!v.p, "wheelchair", "wheelchair-off", v.p ? "Accessible PMR" : "Non accessible PMR", "#9DB689") + (v.bateau ? "" : flag(climOn, "snowflake", "snowflake-off", v.c === "cond" ? "Climatisation conducteur seul" : v.c === 1 ? "Climatisé" : "Non climatisé", v.c === "cond" ? "#FFBA7F" : "#10B3C5")) + "</div>");
@@ -3224,6 +3229,58 @@ function busPopupHtml(bus) {
  return `<div class="bp" style="--bp-c:${mainColor}">\n                <div class="bp-hero${vehImgs.length ? "" : " bp-nophoto"}">${img}<div class="bp-logo">${lineImgHtml(line, "32px")}</div></div>\n                <div class="bp-body">\n                    <div class="bp-top"><span class="bp-label">Direction</span><span class="bp-chip ${delayOk ? "bp-ok" : "bp-late"}">${delayOk ? "À l'heure" : bus.delay}</span></div>\n                    <div class="bp-dest">${dest}</div>\n                    <div class="bp-veh">\n                        <div class="bp-model"><i class="ti ti-${/^NAVI/.test(line) ? "ship" : "bus"}"></i><span>${getVehicleType(bus)}</span><span class="bp-num"><i class="ti ti-hash"></i>${parcNumber(bus)}</span></div>\n                        ${vehicleDetailsHtml(bus)}\n                    </div>\n                </div>\n            </div>`;
 }
 
+// Déplace un marqueur de bus sans que son pop-up ouvert ne recadre la carte à chaque image
+function setBusLatLng(mk, ll) {
+ const pp = mk.getPopup(), ap = pp && pp.options.autoPan;
+ if (pp) pp.options.autoPan = false;
+ try {
+  mk.setLatLng(ll);   // le pop-up ouvert suit le marqueur (événement "move")
+ } finally {
+  if (pp) pp.options.autoPan = ap;
+ }
+}
+
+// Fait glisser le bus de sa position affichée vers la nouvelle (au lieu de le téléporter)
+function busGlideTo(entry, lat, lon) {
+ const mk = entry.marker, cur = mk.getLatLng(), now = performance.now();
+ const dur = Math.max(800, Math.min(8000, entry.lastMove ? now - entry.lastMove : 4000));
+ entry.lastMove = now;
+ if (REDUCED_MOTION || LITE || cur.lat === lat && cur.lng === lon || map.distance(cur, [ lat, lon ]) > 800) {
+  entry.glide = null;
+  busAnims.delete(entry);
+  setBusLatLng(mk, [ lat, lon ]);
+  return;
+ }
+ entry.glide = {
+  a: cur,
+  b: L.latLng(lat, lon),
+  t0: now,
+  dur: dur
+ };
+ busAnims.add(entry);
+ if (!busAnimRaf) busAnimRaf = requestAnimationFrame(busGlideTick);
+}
+
+function busGlideTick() {
+ busAnimRaf = 0;
+ const now = performance.now();
+ for (const e of busAnims) {
+  const g = e.glide;
+  if (!g || !e.marker._map) {
+   busAnims.delete(e);
+   continue;
+  }
+  if (map._animatingZoom) continue;   // Leaflet anime déjà les marqueurs pendant un zoom : on reprend après
+  const k = Math.min(1, (now - g.t0) / g.dur);
+  setBusLatLng(e.marker, L.latLng(g.a.lat + (g.b.lat - g.a.lat) * k, g.a.lng + (g.b.lng - g.a.lng) * k));
+  if (k >= 1) {
+   e.glide = null;
+   busAnims.delete(e);
+  }
+ }
+ if (busAnims.size) busAnimRaf = requestAnimationFrame(busGlideTick);
+}
+
 function updateVisibleBuses() {
  try {
   const seenIds = new Set;
@@ -3244,7 +3301,7 @@ function updateVisibleBuses() {
      const ik = busIconKey(bus), pp = entry.marker.getPopup(), ap = pp && pp.options.autoPan;
      if (pp) pp.options.autoPan = false;
      try {
-      entry.marker.setLatLng([ lat, lon ]);
+      busGlideTo(entry, lat, lon);
       if (entry.ik !== ik) {
        entry.marker.setIcon(busIcon(bus));
        entry.ik = ik;
@@ -3292,6 +3349,7 @@ function updateVisibleBuses() {
    if (!seenIds.has(id)) {
     const el = entry.marker.getElement(), mk = entry.marker;
     busMarkers.delete(id);
+    busAnims.delete(entry);
     if (el && !REDUCED_MOTION) {
      el.classList.add("veh-out");
      setTimeout(() => busLayer.removeLayer(mk), 260);
