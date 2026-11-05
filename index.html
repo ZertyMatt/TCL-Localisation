@@ -801,8 +801,8 @@ img[loading=lazy].img-ok { opacity: 1; }
 <div class="credits-section"><h3><i class="ti ti-bus"></i>TCL Localisation</h3><p>Application de localisation en temps réel des transports en commun lyonnais.</p></div>
 <div class="credits-section"><h3><i class="ti ti-database"></i>Sources de données</h3><p>Données fournies par <a href="https://data.grandlyon.com" target="_blank">data.grandlyon.com</a></p></div>
 <div class="credits-section"><h3><i class="ti ti-map-2"></i>Cartographie</h3><p>© <a href="https://www.openstreetmap.org" target="_blank">OpenStreetMap</a></p></div>
-<!-- ⚠️ VERSION : à chaque modification de ce fichier, augmenter le numéro de version de +1 (ex. v1.22 → v1.23) sur la ligne juste en dessous. -->
-<div class="credits-section"><h3><i class="ti ti-code"></i>Développement</h3><p>Préversion v1.22 - Novembre 2026</p></div>
+<!-- ⚠️ VERSION : à chaque modification de ce fichier, augmenter le numéro de version de +1 (ex. v1.23 → v1.24) sur la ligne juste en dessous. -->
+<div class="credits-section"><h3><i class="ti ti-code"></i>Développement</h3><p>Préversion v1.23 - Novembre 2026</p></div>
 </div>
 </div>
 <div id="velov-pane" class="tab-pane">
@@ -4096,29 +4096,6 @@ async function updateTraffic() {
    const linesHtml = uniqueLines.map(line => lineImgHtml(line, "28px")).join("");
    return `<div class="info-item${popup ? " traffic-popup expanded" : ""}">\n                        <div class="info-summary"${popup ? "" : ' onclick="toggleInfoItem(this)"'}>\n                            <div class="info-line-badge" style="background:${bg};border:1px solid ${bdr};font-size:18px;color:${fg};">${icon}</div>\n                            <div class="info-summary-text">\n                                <div class="info-titre">${a.titre || "Info trafic"}</div>\n                                ${linesHtml ? `<div class="stop-lines" style="margin-top:6px;">${linesHtml}</div>` : ""}\n                                <div class="info-type" style="margin-top:5px;">${a.mode || "TCL"} • ${a.type || "Information"}</div>\n                            </div>\n                            ${popup ? "" : '<span class="info-chevron"><i class="ti ti-chevron-down"></i></span>'}\n                        </div>\n                        <div class="info-detail">${a.message || "Aucun détail"}</div>\n                        ${popup ? '<button class="traffic-popup-close" type="button" aria-label="Fermer" onclick="closeTrafficPopup(this)"><i class="ti ti-x"></i></button>' : ""}\n                    </div>`;
   };
-  list.innerHTML = items.map(a => trafficItemHtml(a, false)).join("");
-  let seen = null;
-  try {
-   seen = JSON.parse(localStorage.getItem("tcl-traffic-seen") || "null");
-  } catch (e) {}
-  const known = new Set(seen || trafficSeen);
-  const fresh = items.filter(a => !known.has(trafficKey(a)));
-  items.forEach(a => known.add(trafficKey(a)));
-  trafficSeen = known;
-  try {
-   localStorage.setItem("tcl-traffic-seen", JSON.stringify([ ...known ].slice(-300)));
-  } catch (e) {}
-  if (trafficInitDone || seen) {
-   const box = document.getElementById("traffic-popups");
-   fresh.forEach(a => {
-    box.insertAdjacentHTML("beforeend", trafficItemHtml(a, true));
-    autoDismissTrafficPopup(box.lastElementChild);
-   });
-  }
-  trafficInitDone = true;
- } catch (e) {
-  console.error("Traffic:", e);
- }
 }
 
 const ACCESS_MODES = new Set([ "metro", "tram", "funiculaire" ]);
