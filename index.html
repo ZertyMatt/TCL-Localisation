@@ -4096,6 +4096,9 @@ async function updateTraffic() {
    const linesHtml = uniqueLines.map(line => lineImgHtml(line, "28px")).join("");
    return `<div class="info-item${popup ? " traffic-popup expanded" : ""}">\n                        <div class="info-summary"${popup ? "" : ' onclick="toggleInfoItem(this)"'}>\n                            <div class="info-line-badge" style="background:${bg};border:1px solid ${bdr};font-size:18px;color:${fg};">${icon}</div>\n                            <div class="info-summary-text">\n                                <div class="info-titre">${a.titre || "Info trafic"}</div>\n                                ${linesHtml ? `<div class="stop-lines" style="margin-top:6px;">${linesHtml}</div>` : ""}\n                                <div class="info-type" style="margin-top:5px;">${a.mode || "TCL"} • ${a.type || "Information"}</div>\n                            </div>\n                            ${popup ? "" : '<span class="info-chevron"><i class="ti ti-chevron-down"></i></span>'}\n                        </div>\n                        <div class="info-detail">${a.message || "Aucun détail"}</div>\n                        ${popup ? '<button class="traffic-popup-close" type="button" aria-label="Fermer" onclick="closeTrafficPopup(this)"><i class="ti ti-x"></i></button>' : ""}\n                    </div>`;
   };
+   } catch (e) {
+  console.error("Traffic:", e);
+ }
 }
 
 const ACCESS_MODES = new Set([ "metro", "tram", "funiculaire" ]);
